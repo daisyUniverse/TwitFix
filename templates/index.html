@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+
+{% block head %}
+    <meta content='text/html; charset=UTF-8' http-equiv='Content-Type' />
+    <meta name="twitter:card" content="player" />
+    <meta name="twitter:title" content="{{ user }}" />
+    <meta name="twitter:image" content="{{ pic }}" />
+    <meta name="twitter:player" content="{{ vidurl }}" />
+    <meta name="twitter:player:width" content="720" />
+    <meta name="twitter:player:height" content="480" />
+    <meta name="twitter:player:stream" content="{{ vidurl }}" />
+    <meta name="twitter:player:stream:content_type" content="video/mp4" />
+    <meta http-equiv = "refresh" content = "0; url = {{ tweeturl }}" />
+{% endblock %}
+
+{% block body %}
+<video width="100%" controls>
+    <source src="{{ vidurl }}" type="video/mp4">
+  </video>
+{% endblock %}
