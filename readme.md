@@ -6,7 +6,10 @@ This does work! but I'm new to flask, so it can probably be improved a great dea
 
 ## How to use (discord side)
 
-just put the url to the server,and directly after, the full URL to the tweet you want to embed
+just put the url to the server, and directly after, the full URL to the tweet you want to embed
+
+I have a version running on my computer, I don't promise it'll be up all the time, but for now, you can use it by using the url
+`http://twtfx.me/<twitter url>`
 
 ## How to run (server side)
 
@@ -14,5 +17,5 @@ this script uses the youtube-dl python module, along with flask, so install thos
 
 By default I have the port set to 80, just cause that's what was convenient for me, but it can easily be changed, either using an environment variable, or changing the bottom line of the script itself
 
-This project is licensed under th **Do What The Fuck You Want Public License**
+This project is licensed under the **Do What The Fuck You Want Public License**
 
