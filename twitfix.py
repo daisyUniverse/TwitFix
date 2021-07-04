@@ -51,7 +51,7 @@ def twitfix(subpath):
 
 @app.route('/info/<path:subpath>')
 def info(subpath):
-    with ydl:
+    with youtube_dl.YoutubeDL({'outtmpl': '%(id)s.%(ext)s'}) as ydl:
         result = ydl.extract_info(subpath, download=False)
 
     return result
