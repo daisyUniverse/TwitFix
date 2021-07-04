@@ -3,7 +3,6 @@ import youtube_dl
 import json
 import re
 
-ydl = youtube_dl.YoutubeDL({'outtmpl': '%(id)s.%(ext)s'})
 app = Flask(__name__)
 pathregex = re.compile("\\w{1,15}\\/status\\/\\d{19}")
 
@@ -26,7 +25,7 @@ def twitfix(subpath):
             print("Link located in cache")
             return render_template('index.html', vidurl=link_cache[twitter_url]['url'], tweet=link_cache[twitter_url]['description'], pic=link_cache[twitter_url]['thumbnail'], user=link_cache[twitter_url]['uploader'], tweeturl=twitter_url)
         else:
-            with ydl:
+            with youtube_dl.YoutubeDL({'outtmpl': '%(id)s.%(ext)s'}) as ydl:
                 try:
                     print("Link not in cache, downloading and adding details to cache file")
                     result = ydl.extract_info(twitter_url, download=False)
