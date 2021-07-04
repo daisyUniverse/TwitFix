@@ -1,7 +1,5 @@
-from flask import Flask, render_template, url_for, request, redirect
-from datetime import datetime
+from flask import Flask, render_template
 import youtube_dl
-import os
 import re
 
 ydl = youtube_dl.YoutubeDL({'outtmpl': '%(id)s.%(ext)s'})
