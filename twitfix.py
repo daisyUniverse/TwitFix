@@ -43,12 +43,12 @@ def twitfix(subpath):
 
                 except Exception: # Just to keep from 500s that are messy
                     print(Exception)
-                    return "Bad twitter link, try again"
+                    return render_template('default.html', message="Failed to scan your twitter link! ( there is a chance I ran out of api calls.. wait a bit and try again )")
 
             return render_template('index.html', vidurl=result['url'], tweet=result['description'], pic=result['thumbnail'], user=result['uploader'], tweeturl=twitter_url)
     else:
         print("Link invalid")
-        return "Please use a twitter link"
+        return render_template('default.html', message="Please use a twitter link!")
 
 @app.route('/info/<path:subpath>')
 def info(subpath):
