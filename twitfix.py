@@ -8,7 +8,7 @@ import os
 ydl = youtube_dl.YoutubeDL({'outtmpl': '%(id)s.%(ext)s'})
 app = Flask(__name__)
 
-@app.route('/twitfix/<path:subpath>')
+@app.route('/<path:subpath>')
 def twitfix(subpath):
     if subpath.startswith('https://twitter.com'):
         with ydl:
@@ -26,5 +26,4 @@ def info(subpath):
     return result
 
 if __name__ == "__main__":
-    app.run(debug=False)
     app.run(host='0.0.0.0', port=80)
