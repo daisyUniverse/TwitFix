@@ -8,8 +8,10 @@ This does work! but I'm new to flask, so it can probably be improved a great dea
 
 just put the url to the server, and directly after, the full URL to the tweet you want to embed
 
-I have a version running on my computer, I don't promise it'll be up all the time, but for now, you can use it by using the url
+**I now have a copy of this running on a Linode server, you can use it via the following url**
 `http://twtfx.me/<twitter url>`
+
+**Note**: If you enjoy this service, please considering donating via [Ko-Fi](https://ko-fi.com/robin_universe) to help cover server costs
 
 ## How to run (server side)
 
@@ -19,3 +21,10 @@ By default I have the port set to 80, just cause that's what was convenient for 
 
 This project is licensed under the **Do What The Fuck You Want Public License**
 
+
+
+## Other stuff
+
+Using the `/info/<video-url>` endpoint will return a json that contains all video info that youtube-dl can grab about any given video
+
+Using `/other/<video-url>` will attempt to run the twitter embed stuff on other websites videos - This is mostly experimental and doesn't really work for now 
