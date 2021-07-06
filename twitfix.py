@@ -11,6 +11,10 @@ f = open('links.json',)
 link_cache = json.load(f)
 f.close()
 
+@app.route('/')
+def default():
+    return render_template('default.html', message="TwitFix is an attempt to fix twitter video embeds in discord click this link to be directed to my github page for the project!")
+
 @app.route('/<path:subpath>')
 def twitfix(subpath):
 
