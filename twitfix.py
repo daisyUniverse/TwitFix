@@ -1,4 +1,5 @@
 from flask import Flask, render_template
+import pymongo
 import youtube_dl
 import json
 import re
@@ -6,14 +7,20 @@ import re
 app = Flask(__name__)
 pathregex = re.compile("\\w{1,15}\\/status\\/\\d{19}")
 
-link_cache = {}
-f = open('links.json',)
-link_cache = json.load(f)
-f.close()
+link_cache_system = "json" # Select your prefered link cache system, "db" for mongoDB or "json" for locally writing a json file ( not great if using multiple workers )
+
+if link_cache_system == "json":
+    link_cache = {}
+    f = open('links.json',)
+    link_cache = json.load(f)
+    f.close()
+elif link_cache_system == "db":
+    client = pymongo.MongoClient("PUT YOUR MONGODB URL HERE")
+    db = client.TwitFix
 
 @app.route('/')
 def default():
-    return render_template('default.html', message="TwitFix is an attempt to fix twitter video embeds in discord click this link to be directed to my github page for the project!")
+    return render_template('default.html', message="TwitFix is an attempt to fix twitter video embeds in discord! created by Robin Universe :) 💖 ")
 
 @app.route('/<path:subpath>')
 def twitfix(subpath):
@@ -43,28 +50,65 @@ def info(subpath):
     return result
 
 def embedVideo(vidlink): # Return a render template from a video url
-    if vidlink in link_cache:
-        print("Link located in cache")
-        return render_template('index.html', vidurl=link_cache[vidlink]['url'], desc=link_cache[vidlink]['description'], pic=link_cache[vidlink]['thumbnail'], user=link_cache[vidlink]['uploader'], vidlink=vidlink)
+    if link_cache_system == "db":
+        collection = db.linkCache
+        dbresult = collection.find_one({'tweet': vidlink})
+        if dbresult != None:
+            print("Link located in DB cache")
+            return render_template('index.html', vidurl=dbresult['url'], desc=dbresult['description'], pic=dbresult['thumbnail'], user=dbresult['uploader'], vidlink=vidlink)
+        else:
+            with youtube_dl.YoutubeDL({'outtmpl': '%(id)s.%(ext)s'}) as ydl:
+                try:
+                    print("Link not in json cache, downloading and adding details to cache file")
+                    result = ydl.extract_info(vidlink, download=False)
+                    vnf = vidInfo(result['url'], vidlink, result['description'], result['thumbnail'], result['uploader'])
+
+                    try:
+                        out = db.linkCache.insert_one(vnf)
+                        print("Link added to DB cache")
+                    except Exception:
+                        print("Failed to add link to DB cache")
+                    
+                    return render_template('index.html', vidurl=vnf['url'], desc=vnf['description'], pic=vnf['thumbnail'], user=vnf['uploader'], vidlink=vidlink)
+
+                except Exception:
+                    print("Failed to download link")
+                    return render_template('default.html', message="Failed to scan your link!")
+    
+    elif link_cache_system == "json":
+        if vidlink in link_cache:
+            print("Link located in json cache")
+            return render_template('index.html', vidurl=link_cache[vidlink]['url'], desc=link_cache[vidlink]['description'], pic=link_cache[vidlink]['thumbnail'], user=link_cache[vidlink]['uploader'], vidlink=vidlink)
+        else:
+            with youtube_dl.YoutubeDL({'outtmpl': '%(id)s.%(ext)s'}) as ydl:
+                try:
+                    print("Link not in json cache, downloading and adding details to cache file")
+                    result = ydl.extract_info(vidlink, download=False)
+                    vnf = vidInfo(result['url'], vidlink, result['description'], result['thumbnail'], result['uploader'])
+                    link_cache[vidlink] = vnf
+
+                    with open("links.json", "w") as outfile: 
+                        json.dump(link_cache, outfile, indent=4, sort_keys=True)
+
+                except Exception: # Just to keep from 500s that are messy
+                    print("Failed to download link")
+                    return render_template('default.html', message="Failed to scan your link!")
+
+            return render_template('index.html', vidurl=vnf['url'], desc=vnf['description'], pic=vnf['thumbnail'], user=vnf['uploader'], vidlink=vidlink)
     else:
-        with youtube_dl.YoutubeDL({'outtmpl': '%(id)s.%(ext)s'}) as ydl:
-            try:
-                print("Link not in cache, downloading and adding details to cache file")
-                result = ydl.extract_info(vidlink, download=False)
-                vnf = vidInfo(result['url'], result['description'], result['thumbnail'], result['uploader'])
-                link_cache[vidlink] = vnf
+        try:
+            with youtube_dl.YoutubeDL({'outtmpl': '%(id)s.%(ext)s'}) as ydl:
+                result = ydl.extract_info(subpath, download=False)
+                vnf = vidInfo(result['url'], vidlink, result['description'], result['thumbnail'], result['uploader'])
+                return render_template('index.html', vidurl=vnf['url'], desc=vnf['description'], pic=vnf['thumbnail'], user=vnf['uploader'], vidlink=vidlink)
+        except Exception:
+            print("Failed to download link")
+            return render_template('default.html', message="Failed to scan your link!")
 
-                with open("links.json", "w") as outfile: 
-                    json.dump(link_cache, outfile, indent=4, sort_keys=True)
 
-            except Exception: # Just to keep from 500s that are messy
-                print("Failed to download link")
-                return render_template('default.html', message="Failed to scan your link!")
-
-        return render_template('index.html', vidurl=vnf['url'], desc=vnf['description'], pic=vnf['thumbnail'], user=vnf['uploader'], vidlink=vidlink)
-
-def vidInfo(url, desc="", thumb="", uploader=""): # Return a dict of video info with default values
+def vidInfo(url, tweet="", desc="", thumb="", uploader=""): # Return a dict of video info with default values
     vnf = {
+        "tweet"         :tweet,
         "url"           :url,
         "description"   :desc,
         "thumbnail"     :thumb,
@@ -73,4 +117,4 @@ def vidInfo(url, desc="", thumb="", uploader=""): # Return a dict of video info 
     return vnf
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=80)
+    app.run(host='0.0.0.0')

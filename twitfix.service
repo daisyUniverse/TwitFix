@@ -1,0 +1,13 @@
+[Unit]
+Description=Init file for twitfix uwsgi instance
+After=network.target
+
+[Service]
+User=robin
+Group=robin
+WorkingDirectory=/home/robin/twitfix
+Environment="PATH=/home/robin/twitfix/twitfixenv/bin"
+ExecStart=/home/robin/twitfix/twitfixenv/bin/uwsgi --ini twitfix.ini
+
+[Install]
+WantedBy=multi-user.target
