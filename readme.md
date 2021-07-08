@@ -24,7 +24,7 @@ this script uses the youtube-dl python module, along with flask and pymongo, so 
 
 By default I have the port set to 80, just cause that's what was convenient for me, but it can easily be changed, either using an environment variable, or changing the bottom line of the script itself
 
-I have included some files to give you a head start on setting this server up with uWSGI, though if you decide to use uWSGI I suggest you set up mongoDB link caching by going into the script and change `link_cache_system` from `json` to `"DB"`, and inserting you mongoDB address, as having many workers writing to the same json file doesn't really work
+I have included some files to give you a head start on setting this server up with uWSGI, though if you decide to use uWSGI I suggest you set up mongoDB link caching by going into the script and change `link_cache_system` from `json` to `"db"`, and inserting you mongoDB address, as having many workers writing to the same json file doesn't really work
 
 This project is licensed under the **Do What The Fuck You Want Public License**
 
