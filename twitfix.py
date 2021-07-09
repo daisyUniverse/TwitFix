@@ -22,6 +22,13 @@ elif link_cache_system == "db":
 def default():
     return render_template('default.html', message="TwitFix is an attempt to fix twitter video embeds in discord! created by Robin Universe :) 💖 ")
 
+@app.route('/oembed.json')
+def oembedend():
+    desc = request.args.get("desc", None)
+    user = request.args.get("user", None)
+    link = request.args.get("link", None)
+    return oEmbedGen(desc,user,link)
+
 @app.route('/<path:subpath>')
 def twitfix(subpath):
 
@@ -115,6 +122,19 @@ def vidInfo(url, tweet="", desc="", thumb="", uploader=""): # Return a dict of v
         "uploader"      :uploader
     }
     return vnf
+
+def oEmbedGen(description, user, vidlink):
+    out = {
+            "type":"video",
+            "version":"1.0",
+            "provider_name":"TwitFix",
+            "provider_url":"https://github.com/robinuniverse/twitfix",
+            "title":description,
+            "author_name":user,
+            "author_url":vidlink
+            }
+
+    return out
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0')

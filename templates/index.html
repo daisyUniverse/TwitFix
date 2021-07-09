@@ -2,19 +2,34 @@
 
 {% block head %}
     <meta content='text/html; charset=UTF-8' http-equiv='Content-Type' />
-    <meta name="twitter:card" content="player" />
-    <meta name="twitter:title" content="{{ user }}" />
-    <meta name="twitter:image" content="{{ pic }}" />
-    <meta name="twitter:player" content="{{ vidurl }}" />
-    <meta name="twitter:player:width" content="720" />
-    <meta name="twitter:player:height" content="480" />
-    <meta name="twitter:player:stream" content="{{ vidurl }}" />
-    <meta name="twitter:player:stream:content_type" content="video/mp4" />
+
+    <meta property="og:site_name" content="TwitFix">
+
+    <meta name="twitter:card"                       content="player" />
+    <meta name="twitter:title"                      content="{{ user }}" />
+    <meta name="twitter:image"                      content="{{ pic }}" />
+    <meta name="twitter:player"                     content="{{ vidurl }}" />
+    <!--<meta name="twitter:description"                content="{{ desc }}" />!-->
+    <meta name="twitter:player:width"               content="720" />
+    <meta name="twitter:player:height"              content="480" />
+    <meta name="twitter:player:stream"              content="{{ vidurl }}" />
+    <meta name="twitter:player:stream:content_type" content="video/mp4" /> 
+
+    
+    <meta property="og:url"                content="{{ vidlink }}" />
+    <meta property="og:video"              content="{{ vidurl }}" />
+    <meta property="og:video:secure_url"   content="{{ vidurl }}" />
+    <meta property="og:video:type"         content="video/mp4" />
+    <meta property="og:video:width"        content="720" />
+    <meta property="og:video:height"       content="480" />
+    <meta property="og:title"              content="{{ user }}" />
+    <!--<meta property="og:description"        content="{{ desc }}" />!-->
+    <meta property="og:image"              content="{{ pic }}" />
+        <!--!-->
+    <link rel="alternate" href="https://fxtwitter.com/oembed.json?desc={{ user }}&user={{ desc }}&link={{ link }}" type="application/json+oembed" title="{{ user }}">
     <meta http-equiv = "refresh" content = "0; url = {{ vidlink }}" />
 {% endblock %}
 
 {% block body %}
-<video width="100%" controls>
-    <source src="{{ vidurl }}" type="video/mp4">
-  </video>
+Redirecting you to the tweet...
 {% endblock %}
