@@ -62,7 +62,7 @@ def embedVideo(vidlink): # Return a render template from a video url
         dbresult = collection.find_one({'tweet': vidlink})
         if dbresult != None:
             print("Link located in DB cache")
-            return render_template('index.html', vidurl=dbresult['url'], desc=dbresult['description'], pic=dbresult['thumbnail'], user=dbresult['uploader'], vidlink=vidlink)
+            return render_template('index.html', vidurl=dbresult['url'], desc=dbresult['description'].rsplit(' ',1)[0], pic=dbresult['thumbnail'], user=dbresult['uploader'], vidlink=vidlink)
         else:
             with youtube_dl.YoutubeDL({'outtmpl': '%(id)s.%(ext)s'}) as ydl:
                 try:
@@ -76,7 +76,7 @@ def embedVideo(vidlink): # Return a render template from a video url
                     except Exception:
                         print("Failed to add link to DB cache")
                     
-                    return render_template('index.html', vidurl=vnf['url'], desc=vnf['description'], pic=vnf['thumbnail'], user=vnf['uploader'], vidlink=vidlink)
+                    return render_template('index.html', vidurl=vnf['url'], desc=vnf['description'].rsplit(' ',1)[0], pic=vnf['thumbnail'], user=vnf['uploader'], vidlink=vidlink)
 
                 except Exception:
                     print("Failed to download link")
@@ -101,13 +101,13 @@ def embedVideo(vidlink): # Return a render template from a video url
                     print("Failed to download link")
                     return render_template('default.html', message="Failed to scan your link!")
 
-            return render_template('index.html', vidurl=vnf['url'], desc=vnf['description'], pic=vnf['thumbnail'], user=vnf['uploader'], vidlink=vidlink)
+            return render_template('index.html', vidurl=vnf['url'], desc=vnf['description'].rsplit(' ',1)[0], pic=vnf['thumbnail'], user=vnf['uploader'], vidlink=vidlink)
     else:
         try:
             with youtube_dl.YoutubeDL({'outtmpl': '%(id)s.%(ext)s'}) as ydl:
                 result = ydl.extract_info(subpath, download=False)
                 vnf = vidInfo(result['url'], vidlink, result['description'], result['thumbnail'], result['uploader'])
-                return render_template('index.html', vidurl=vnf['url'], desc=vnf['description'], pic=vnf['thumbnail'], user=vnf['uploader'], vidlink=vidlink)
+                return render_template('index.html', vidurl=vnf['url'], desc=vnf['description'].rsplit(' ',1)[0], pic=vnf['thumbnail'], user=vnf['uploader'], vidlink=vidlink)
         except Exception:
             print("Failed to download link")
             return render_template('default.html', message="Failed to scan your link!")
