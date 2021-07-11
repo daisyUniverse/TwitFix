@@ -10,7 +10,7 @@ just put the url to the server, and directly after, the full URL to the tweet yo
 
 **I now have a copy of this running on a Linode server, you can use it via the following url**
 
-https://fxtwitter.com/`<twitter video url>`
+https://fxtwitter.com/`twitter video url` or `last half of twitter url (everything past twitter.com/)`
 
 You can also simply type out 'fx' directly before 'twitter.com' in any valid twitter video url, and that will convert it into a working TwitFix url, for example:
 

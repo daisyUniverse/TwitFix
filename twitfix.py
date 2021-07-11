@@ -3,19 +3,34 @@ import pymongo
 import youtube_dl
 import json
 import re
+import os
 
 app = Flask(__name__)
 pathregex = re.compile("\\w{1,15}\\/status\\/\\d{19}")
 
-link_cache_system = "json" # Select your prefered link cache system, "db" for mongoDB or "json" for locally writing a json file ( not great if using multiple workers )
+if not os.path.exists("config.json"):
+    with open("config.json", "w") as outfile:
+        default = {"config":{"link_cache":"json","database":"[url to mongo database goes here]","method":"youtube-dl"},"api":{"consumer_key":"[consumer key goes here]","consumer_secret":"[consumer secret goes here]","access_token_key":"[access token key goes here]","access_token_secret":"[access token secret goes here]"}}
+        json.dump(default, outfile, indent=4, sort_keys=True)
+
+f = open("config.json")
+config = json.load(f)
+f.close()
+
+link_cache_system = config['config']['link_cache'] # Select your prefered link cache system, "db" for mongoDB or "json" for locally writing a json file ( not great if using multiple workers )
 
 if link_cache_system == "json":
     link_cache = {}
+    if not os.path.exists("config.json"):
+        with open("config.json", "w") as outfile:
+            deflinkcache = {"test":"test"}
+            json.dump(deflinkcache, outfile, indent=4, sort_keys=True)
+
     f = open('links.json',)
     link_cache = json.load(f)
     f.close()
 elif link_cache_system == "db":
-    client = pymongo.MongoClient("PUT YOUR MONGODB URL HERE")
+    client = pymongo.MongoClient(config['config']['database'], connect=False)
     db = client.TwitFix
 
 @app.route('/')
