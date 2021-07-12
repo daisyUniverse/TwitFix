@@ -18,7 +18,7 @@ f = open("config.json")
 config = json.load(f)
 f.close()
 
-if config['config']['method'] == "api":
+if config['config']['method'] in ('api', 'hybrid'):
     auth = twitter.oauth.OAuth(config['api']['access_token'], config['api']['access_secret'], config['api']['api_key'], config['api']['api_secret'])
     twitter_api = twitter.Twitter(auth=auth)
 
@@ -122,8 +122,9 @@ def linkToVNF(vidlink): # Return a VideoInfo object or die trying
     if config['config']['method'] == 'hybrid':
         try:
             return linkToVNFfromAPI(vidlink)
-        except Exception:
+        except Exception as e:
             print("API Failed")
+            print(e)
             return linkToVNFfromYoutubeDL(vidlink)
     elif config['config']['method'] == 'api':
         try:
