@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request
 import youtube_dl
+import textwrap
 import twitter
 import pymongo
 import json
@@ -108,14 +109,17 @@ def linkToVNFfromAPI(vidlink):
         url = tweet['extended_entities']['media'][0]['video_info']['variants'][-1]['url']
     else:
         url = tweet['extended_entities']['media'][0]['video_info']['variants'][-2]['url']
-    vnf = vidInfo(url, vidlink, tweet['full_text'], tweet['extended_entities']['media'][0]['media_url'], tweet['user']['name'])
+    
+    text = textwrap.shorten(tweet['full_text'], width=200, placeholder="...")
+    print(text)
+    vnf = vidInfo(url, vidlink, text, tweet['extended_entities']['media'][0]['media_url'], tweet['user']['name'])
     return vnf
 
 def linkToVNFfromYoutubeDL(vidlink):
     print("Attempting to download tweet info via YoutubeDL")
     with youtube_dl.YoutubeDL({'outtmpl': '%(id)s.%(ext)s'}) as ydl:
         result = ydl.extract_info(vidlink, download=False)
-        vnf = vidInfo(result['url'], vidlink, result['description'], result['thumbnail'], result['uploader'])
+        vnf = vidInfo(result['url'], vidlink, result['description'].rsplit(' ',1)[0], result['thumbnail'], result['uploader'])
         return vnf
 
 def linkToVNF(vidlink): # Return a VideoInfo object or die trying
@@ -180,7 +184,7 @@ def addVNFtoLinkCache(vidlink, vnf):
             return None
 
 def embed(vidlink, vnf):
-    return render_template('index.html', vidurl=vnf['url'], desc=vnf['description'].rsplit(' ',1)[0], pic=vnf['thumbnail'], user=vnf['uploader'], vidlink=vidlink)
+    return render_template('index.html', vidurl=vnf['url'], desc=vnf['description'], pic=vnf['thumbnail'], user=vnf['uploader'], vidlink=vidlink)
 
 def oEmbedGen(description, user, vidlink):
     out = {
