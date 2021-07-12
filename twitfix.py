@@ -6,7 +6,6 @@ import json
 import re
 import os
 
-
 app = Flask(__name__)
 pathregex = re.compile("\\w{1,15}\\/status\\/\\d{19}")
 
@@ -101,20 +100,49 @@ def vidInfo(url, tweet="", desc="", thumb="", uploader=""): # Return a dict of v
     }
     return vnf
 
-def linkToVNF(vidlink):
-    try:
-        print("Attempting to download tweet info from Twitter API")
-        twid = int(re.sub(r'\?.*$','',vidlink.rsplit("/", 1)[-1])) #gets the tweet ID as a int from the passed url
-        tweet = twitter_api.statuses.show(_id=twid)
-        url = tweet['extended_entities']['media'][0]['video_info']['variants'][-1]
-        vnf = vidInfo(url, vidlink, tweet['text'], tweet['media']['media_url'], tweet['user']['name'])
+def linkToVNFfromAPI(vidlink):
+    print("Attempting to download tweet info from Twitter API")
+    twid = int(re.sub(r'\?.*$','',vidlink.rsplit("/", 1)[-1])) # gets the tweet ID as a int from the passed url
+    tweet = twitter_api.statuses.show(_id=twid, tweet_mode="extended")
+    if tweet['extended_entities']['media'][0]['video_info']['variants'][-1]['content_type'] == "video/mp4":
+        url = tweet['extended_entities']['media'][0]['video_info']['variants'][-1]['url']
+    else:
+        url = tweet['extended_entities']['media'][0]['video_info']['variants'][-2]['url']
+    vnf = vidInfo(url, vidlink, tweet['full_text'], tweet['extended_entities']['media'][0]['media_url'], tweet['user']['name'])
+    return vnf
+
+def linkToVNFfromYoutubeDL(vidlink):
+    print("Attempting to download tweet info via YoutubeDL")
+    with youtube_dl.YoutubeDL({'outtmpl': '%(id)s.%(ext)s'}) as ydl:
+        result = ydl.extract_info(vidlink, download=False)
+        vnf = vidInfo(result['url'], vidlink, result['description'], result['thumbnail'], result['uploader'])
         return vnf
-    except Exception:
-        print("API Failed, Attempting to download tweet info via YoutubeDL")
-        with youtube_dl.YoutubeDL({'outtmpl': '%(id)s.%(ext)s'}) as ydl:
-            result = ydl.extract_info(vidlink, download=False)
-            vnf = vidInfo(result['url'], vidlink, result['description'], result['thumbnail'], result['uploader'])
-            return vnf
+
+def linkToVNF(vidlink): # Return a VideoInfo object or die trying
+    if config['config']['method'] == 'hybrid':
+        try:
+            return linkToVNFfromAPI(vidlink)
+        except Exception:
+            print("API Failed")
+            return linkToVNFfromYoutubeDL(vidlink)
+    elif config['config']['method'] == 'api':
+        try:
+            return linkToVNFfromAPI(vidlink)
+        except Exception as e:
+            print("API Failed")
+            print(e)
+            return None
+    elif config['config']['method'] == 'youtube-dl':
+        try:
+            return linkToVNFfromYoutubeDL(vidlink)
+        except Exception as e:
+            print("Youtube-DL Failed")
+            print(e)
+            return None
+    else:
+        print("Please set the method key in your config file to 'api' 'youtube-dl' or 'hybrid'")
+        return None
+
 
 def getVNFfromLinkCache(vidlink):
     if link_cache_system == "db":
