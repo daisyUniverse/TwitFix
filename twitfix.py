@@ -1,23 +1,29 @@
 from flask import Flask, render_template, request
-import pymongo
 import youtube_dl
+import twitter
+import pymongo
 import json
 import re
 import os
+
 
 app = Flask(__name__)
 pathregex = re.compile("\\w{1,15}\\/status\\/\\d{19}")
 
 if not os.path.exists("config.json"):
     with open("config.json", "w") as outfile:
-        default = {"config":{"link_cache":"json","database":"[url to mongo database goes here]","method":"youtube-dl"},"api":{"consumer_key":"[consumer key goes here]","consumer_secret":"[consumer secret goes here]","access_token_key":"[access token key goes here]","access_token_secret":"[access token secret goes here]"}}
+        default = {"config":{"link_cache":"json","database":"[url to mongo database goes here]","method":"youtube-dl"},"api":{"api_key":"[api_key goes here]","consumer_secret":"[api_secret goes here]","access_token":"[access_token goes here]","access_secret":"[access_secret goes here]"}}
         json.dump(default, outfile, indent=4, sort_keys=True)
 
 f = open("config.json")
 config = json.load(f)
 f.close()
 
-link_cache_system = config['config']['link_cache'] # Select your prefered link cache system, "db" for mongoDB or "json" for locally writing a json file ( not great if using multiple workers )
+if config['config']['method'] == "api":
+    auth = twitter.oauth.OAuth(config['api']['access_token'], config['api']['access_secret'], config['api']['api_key'], config['api']['api_secret'])
+    twitter_api = twitter.Twitter(auth=auth)
+
+link_cache_system = config['config']['link_cache']
 
 if link_cache_system == "json":
     link_cache = {}
@@ -71,62 +77,19 @@ def info(subpath):
 
     return result
 
-def embedVideo(vidlink): # Return a render template from a video url
-    if link_cache_system == "db":
-        collection = db.linkCache
-        dbresult = collection.find_one({'tweet': vidlink})
-        if dbresult != None:
-            print("Link located in DB cache")
-            return render_template('index.html', vidurl=dbresult['url'], desc=dbresult['description'].rsplit(' ',1)[0], pic=dbresult['thumbnail'], user=dbresult['uploader'], vidlink=vidlink)
-        else:
-            with youtube_dl.YoutubeDL({'outtmpl': '%(id)s.%(ext)s'}) as ydl:
-                try:
-                    print("Link not in json cache, downloading and adding details to cache file")
-                    result = ydl.extract_info(vidlink, download=False)
-                    vnf = vidInfo(result['url'], vidlink, result['description'], result['thumbnail'], result['uploader'])
+def embedVideo(vidlink):
+    cached_vnf = getVNFfromLinkCache(vidlink)
 
-                    try:
-                        out = db.linkCache.insert_one(vnf)
-                        print("Link added to DB cache")
-                    except Exception:
-                        print("Failed to add link to DB cache")
-                    
-                    return render_template('index.html', vidurl=vnf['url'], desc=vnf['description'].rsplit(' ',1)[0], pic=vnf['thumbnail'], user=vnf['uploader'], vidlink=vidlink)
-
-                except Exception:
-                    print("Failed to download link")
-                    return render_template('default.html', message="Failed to scan your link!")
-    
-    elif link_cache_system == "json":
-        if vidlink in link_cache:
-            print("Link located in json cache")
-            return render_template('index.html', vidurl=link_cache[vidlink]['url'], desc=link_cache[vidlink]['description'], pic=link_cache[vidlink]['thumbnail'], user=link_cache[vidlink]['uploader'], vidlink=vidlink)
-        else:
-            with youtube_dl.YoutubeDL({'outtmpl': '%(id)s.%(ext)s'}) as ydl:
-                try:
-                    print("Link not in json cache, downloading and adding details to cache file")
-                    result = ydl.extract_info(vidlink, download=False)
-                    vnf = vidInfo(result['url'], vidlink, result['description'], result['thumbnail'], result['uploader'])
-                    link_cache[vidlink] = vnf
-
-                    with open("links.json", "w") as outfile: 
-                        json.dump(link_cache, outfile, indent=4, sort_keys=True)
-
-                except Exception: # Just to keep from 500s that are messy
-                    print("Failed to download link")
-                    return render_template('default.html', message="Failed to scan your link!")
-
-            return render_template('index.html', vidurl=vnf['url'], desc=vnf['description'].rsplit(' ',1)[0], pic=vnf['thumbnail'], user=vnf['uploader'], vidlink=vidlink)
-    else:
+    if cached_vnf == None:
         try:
-            with youtube_dl.YoutubeDL({'outtmpl': '%(id)s.%(ext)s'}) as ydl:
-                result = ydl.extract_info(subpath, download=False)
-                vnf = vidInfo(result['url'], vidlink, result['description'], result['thumbnail'], result['uploader'])
-                return render_template('index.html', vidurl=vnf['url'], desc=vnf['description'].rsplit(' ',1)[0], pic=vnf['thumbnail'], user=vnf['uploader'], vidlink=vidlink)
-        except Exception:
-            print("Failed to download link")
+            vnf = linkToVNF(vidlink)
+            addVNFtoLinkCache(vidlink, vnf)
+            return embed(vidlink, vnf)
+        except Exception as e:
+            print(e)
             return render_template('default.html', message="Failed to scan your link!")
-
+    else:
+        return embed(vidlink, cached_vnf)
 
 def vidInfo(url, tweet="", desc="", thumb="", uploader=""): # Return a dict of video info with default values
     vnf = {
@@ -137,6 +100,58 @@ def vidInfo(url, tweet="", desc="", thumb="", uploader=""): # Return a dict of v
         "uploader"      :uploader
     }
     return vnf
+
+def linkToVNF(vidlink):
+    try:
+        print("Attempting to download tweet info from Twitter API")
+        twid = int(re.sub(r'\?.*$','',vidlink.rsplit("/", 1)[-1])) #gets the tweet ID as a int from the passed url
+        tweet = twitter_api.statuses.show(_id=twid)
+        url = tweet['extended_entities']['media'][0]['video_info']['variants'][-1]
+        vnf = vidInfo(url, vidlink, tweet['text'], tweet['media']['media_url'], tweet['user']['name'])
+        return vnf
+    except Exception:
+        print("API Failed, Attempting to download tweet info via YoutubeDL")
+        with youtube_dl.YoutubeDL({'outtmpl': '%(id)s.%(ext)s'}) as ydl:
+            result = ydl.extract_info(vidlink, download=False)
+            vnf = vidInfo(result['url'], vidlink, result['description'], result['thumbnail'], result['uploader'])
+            return vnf
+
+def getVNFfromLinkCache(vidlink):
+    if link_cache_system == "db":
+        collection = db.linkCache
+        vnf = collection.find_one({'tweet': vidlink})
+        if vnf != None: 
+            print("Link located in DB cache")
+            return vnf
+        else:
+            print("Link not in DB cache")
+            return None
+    elif link_cache_system == "json":
+        if vidlink in link_cache:
+            print("Link located in json cache")
+            vnf = link_cache[vidlink]
+            return vnf
+        else:
+            print("Link not in json cache")
+            return None
+
+def addVNFtoLinkCache(vidlink, vnf):
+    if link_cache_system == "db":
+        try:
+            out = db.linkCache.insert_one(vnf)
+            print("Link added to DB cache")
+            return True
+        except Exception:
+            print("Failed to add link to DB cache")
+            return None
+    elif link_cache_system == "json":
+        link_cache[vidlink] = vnf
+        with open("links.json", "w") as outfile: 
+            json.dump(link_cache, outfile, indent=4, sort_keys=True)
+            return None
+
+def embed(vidlink, vnf):
+    return render_template('index.html', vidurl=vnf['url'], desc=vnf['description'].rsplit(' ',1)[0], pic=vnf['thumbnail'], user=vnf['uploader'], vidlink=vidlink)
 
 def oEmbedGen(description, user, vidlink):
     out = {
