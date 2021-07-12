@@ -109,9 +109,15 @@ def linkToVNFfromAPI(vidlink):
         url = tweet['extended_entities']['media'][0]['video_info']['variants'][-1]['url']
     else:
         url = tweet['extended_entities']['media'][0]['video_info']['variants'][-2]['url']
-    
-    text = textwrap.shorten(tweet['full_text'], width=200, placeholder="...")
+
+    if len(tweet['full_text']) > 200:
+        text = textwrap.shorten(tweet['full_text'], width=200, placeholder="...")
+    else:
+        text = tweet['full_text']
+
     print(text)
+    print(len(text))
+
     vnf = vidInfo(url, vidlink, text, tweet['extended_entities']['media'][0]['media_url'], tweet['user']['name'])
     return vnf
 
@@ -184,7 +190,8 @@ def addVNFtoLinkCache(vidlink, vnf):
             return None
 
 def embed(vidlink, vnf):
-    return render_template('index.html', vidurl=vnf['url'], desc=vnf['description'], pic=vnf['thumbnail'], user=vnf['uploader'], vidlink=vidlink)
+    desc = re.sub(r' http.*t\.co\S+', '', vnf['description'].replace("#","＃"))
+    return render_template('index.html', vidurl=vnf['url'], desc=desc, pic=vnf['thumbnail'], user=vnf['uploader'], vidlink=vidlink)
 
 def oEmbedGen(description, user, vidlink):
     out = {
