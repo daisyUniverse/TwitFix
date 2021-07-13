@@ -54,19 +54,18 @@ def oembedend():
 @app.route('/<path:subpath>')
 def twitfix(subpath):
     user_agent = request.headers.get('user-agent')
-    if user_agent in discord_user_agents:
+    match = pathregex.search(subpath)
+    if match is not None:
+        twitter_url = subpath
 
-        match = pathregex.search(subpath)
-        if match is not None:
-            twitter_url = subpath
+        if match.start() == 0:
+            twitter_url = "https://twitter.com/" + subpath
 
-            if match.start() == 0:
-                twitter_url = "https://twitter.com/" + subpath
-
+        if user_agent in discord_user_agents:
             res = embedVideo(twitter_url)
             return res
         else:
-            return render_template('default.html', message="This doesn't seem to be a twitter link, try /other/ to see if other kinds of video link works? (experimental)")
+            return redirect(twitter_url, 301)
     else:
         return redirect("https://twitter.com/" + subpath, 301)
 
