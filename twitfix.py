@@ -23,6 +23,7 @@ else:
     config = json.load(f)
     f.close()
 
+# If method is set to API or Hybrid, attempt to auth with the Twitter API
 if config['config']['method'] in ('api', 'hybrid'):
     auth = twitter.oauth.OAuth(config['api']['access_token'], config['api']['access_secret'], config['api']['api_key'], config['api']['api_secret'])
     twitter_api = twitter.Twitter(auth=auth)
@@ -54,10 +55,11 @@ def oembedend():
     link = request.args.get("link", None)
     return o_embed_gen(desc,user,link)
 
-@app.route('/<path:subpath>')
+@app.route('/<path:sub_path>')
 def twitfix(sub_path):
     user_agent = request.headers.get('user-agent')
     match = pathregex.search(sub_path)
+    print(sub_path)
     if match is not None:
         twitter_url = sub_path
 
@@ -68,9 +70,11 @@ def twitfix(sub_path):
             res = embed_video(twitter_url)
             return res
         else:
+            print("Redirect to " + twitter_url)
             return redirect(twitter_url, 301)
     else:
-        return redirect("https://twitter.com/" + sub_path, 301)
+        print(sub_path)
+        return redirect(sub_path, 301)
 
 @app.route('/other/<path:subpath>') # Show all info that Youtube-DL can get about a video as a json
 def other(sub_path):
@@ -122,9 +126,6 @@ def link_to_vnf_from_api(video_link):
     else:
         text = tweet['full_text']
 
-    print(text)
-    print(len(text))
-
     vnf = video_info(url, video_link, text, tweet['extended_entities']['media'][0]['media_url'], tweet['user']['name'])
     return vnf
 
@@ -161,7 +162,6 @@ def link_to_vnf(video_link): # Return a VideoInfo object or die trying
         print("Please set the method key in your config file to 'api' 'youtube-dl' or 'hybrid'")
         return None
 
-
 def get_vnf_from_link_cache(video_link):
     if link_cache_system == "db":
         collection = db.linkCache
@@ -197,7 +197,7 @@ def add_vnf_to_link_cache(video_link, vnf):
             return None
 
 def embed(video_link, vnf):
-    desc = re.sub(r' http.*t\.co\S+', '', vnf['description'].replace("#","＃"))
+    desc = re.sub(r' http.*t\.co\S+', '', vnf['description'].replace("#","＃")) # some funky string manipulation to get rid of the t.co vid link and replace # with a similar looking character, the normal # breaks when getting fed into the oembed endpoint
     return render_template('index.html', vidurl=vnf['url'], desc=desc, pic=vnf['thumbnail'], user=vnf['uploader'], video_link=video_link)
 
 def o_embed_gen(description, user, video_link):
