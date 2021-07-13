@@ -11,14 +11,17 @@ app = Flask(__name__)
 pathregex = re.compile("\\w{1,15}\\/status\\/\\d{19}")
 discord_user_agents = ["Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:38.0) Gecko/20100101 Firefox/38.0", "Mozilla/5.0 (compatible; Discordbot/2.0; +https://discordapp.com)"]
 
+# Read config from config.json. If it does not exist, create new.
 if not os.path.exists("config.json"):
     with open("config.json", "w") as outfile:
-        default = {"config":{"link_cache":"json","database":"[url to mongo database goes here]","method":"youtube-dl"},"api":{"api_key":"[api_key goes here]","consumer_secret":"[api_secret goes here]","access_token":"[access_token goes here]","access_secret":"[access_secret goes here]"}}
-        json.dump(default, outfile, indent=4, sort_keys=True)
+        default_config = {"config":{"link_cache":"json","database":"[url to mongo database goes here]","method":"youtube-dl"},"api":{"api_key":"[api_key goes here]","consumer_secret":"[api_secret goes here]","access_token":"[access_token goes here]","access_secret":"[access_secret goes here]"}}
+        json.dump(default_config, outfile, indent=4, sort_keys=True)
 
-f = open("config.json")
-config = json.load(f)
-f.close()
+    config = default_config
+else:
+    f = open("config.json")
+    config = json.load(f)
+    f.close()
 
 if config['config']['method'] in ('api', 'hybrid'):
     auth = twitter.oauth.OAuth(config['api']['access_token'], config['api']['access_secret'], config['api']['api_key'], config['api']['api_secret'])
@@ -30,8 +33,8 @@ if link_cache_system == "json":
     link_cache = {}
     if not os.path.exists("config.json"):
         with open("config.json", "w") as outfile:
-            deflinkcache = {"test":"test"}
-            json.dump(deflinkcache, outfile, indent=4, sort_keys=True)
+            default_link_cache = {"test":"test"}
+            json.dump(default_link_cache, outfile, indent=4, sort_keys=True)
 
     f = open('links.json',)
     link_cache = json.load(f)
@@ -49,45 +52,45 @@ def oembedend():
     desc = request.args.get("desc", None)
     user = request.args.get("user", None)
     link = request.args.get("link", None)
-    return oEmbedGen(desc,user,link)
+    return o_embed_gen(desc,user,link)
 
 @app.route('/<path:subpath>')
-def twitfix(subpath):
+def twitfix(sub_path):
     user_agent = request.headers.get('user-agent')
-    match = pathregex.search(subpath)
+    match = pathregex.search(sub_path)
     if match is not None:
-        twitter_url = subpath
+        twitter_url = sub_path
 
         if match.start() == 0:
-            twitter_url = "https://twitter.com/" + subpath
+            twitter_url = "https://twitter.com/" + sub_path
 
         if user_agent in discord_user_agents:
-            res = embedVideo(twitter_url)
+            res = embed_video(twitter_url)
             return res
         else:
             return redirect(twitter_url, 301)
     else:
-        return redirect("https://twitter.com/" + subpath, 301)
+        return redirect("https://twitter.com/" + sub_path, 301)
 
 @app.route('/other/<path:subpath>') # Show all info that Youtube-DL can get about a video as a json
-def other(subpath):
-    res = embedVideo(subpath)
+def other(sub_path):
+    res = embed_video(sub_path)
     return res
 
 @app.route('/info/<path:subpath>') # Show all info that Youtube-DL can get about a video as a json
-def info(subpath):
+def info(sub_path):
     with youtube_dl.YoutubeDL({'outtmpl': '%(id)s.%(ext)s'}) as ydl:
-        result = ydl.extract_info(subpath, download=False)
+        result = ydl.extract_info(sub_path, download=False)
 
     return result
 
-def embedVideo(vidlink):
-    cached_vnf = getVNFfromLinkCache(vidlink)
+def embed_video(vidlink):
+    cached_vnf = get_vnf_from_link_cache(vidlink)
 
     if cached_vnf == None:
         try:
-            vnf = linkToVNF(vidlink)
-            addVNFtoLinkCache(vidlink, vnf)
+            vnf = link_to_vnf(vidlink)
+            add_vnf_to_link_cache(vidlink, vnf)
             return embed(vidlink, vnf)
         except Exception as e:
             print(e)
@@ -95,7 +98,7 @@ def embedVideo(vidlink):
     else:
         return embed(vidlink, cached_vnf)
 
-def vidInfo(url, tweet="", desc="", thumb="", uploader=""): # Return a dict of video info with default values
+def video_info(url, tweet="", desc="", thumb="", uploader=""): # Return a dict of video info with default values
     vnf = {
         "tweet"         :tweet,
         "url"           :url,
@@ -105,7 +108,7 @@ def vidInfo(url, tweet="", desc="", thumb="", uploader=""): # Return a dict of v
     }
     return vnf
 
-def linkToVNFfromAPI(vidlink):
+def link_to_vnf_from_api(vidlink):
     print("Attempting to download tweet info from Twitter API")
     twid = int(re.sub(r'\?.*$','',vidlink.rsplit("/", 1)[-1])) # gets the tweet ID as a int from the passed url
     tweet = twitter_api.statuses.show(_id=twid, tweet_mode="extended")
@@ -122,34 +125,34 @@ def linkToVNFfromAPI(vidlink):
     print(text)
     print(len(text))
 
-    vnf = vidInfo(url, vidlink, text, tweet['extended_entities']['media'][0]['media_url'], tweet['user']['name'])
+    vnf = video_info(url, vidlink, text, tweet['extended_entities']['media'][0]['media_url'], tweet['user']['name'])
     return vnf
 
-def linkToVNFfromYoutubeDL(vidlink):
+def link_to_vnf_from_youtubedl(vidlink):
     print("Attempting to download tweet info via YoutubeDL")
     with youtube_dl.YoutubeDL({'outtmpl': '%(id)s.%(ext)s'}) as ydl:
         result = ydl.extract_info(vidlink, download=False)
-        vnf = vidInfo(result['url'], vidlink, result['description'].rsplit(' ',1)[0], result['thumbnail'], result['uploader'])
+        vnf = video_info(result['url'], vidlink, result['description'].rsplit(' ',1)[0], result['thumbnail'], result['uploader'])
         return vnf
 
-def linkToVNF(vidlink): # Return a VideoInfo object or die trying
+def link_to_vnf(vidlink): # Return a VideoInfo object or die trying
     if config['config']['method'] == 'hybrid':
         try:
-            return linkToVNFfromAPI(vidlink)
+            return link_to_vnf_from_api(vidlink)
         except Exception as e:
             print("API Failed")
             print(e)
-            return linkToVNFfromYoutubeDL(vidlink)
+            return link_to_vnf_from_youtubedl(vidlink)
     elif config['config']['method'] == 'api':
         try:
-            return linkToVNFfromAPI(vidlink)
+            return link_to_vnf_from_api(vidlink)
         except Exception as e:
             print("API Failed")
             print(e)
             return None
     elif config['config']['method'] == 'youtube-dl':
         try:
-            return linkToVNFfromYoutubeDL(vidlink)
+            return link_to_vnf_from_youtubedl(vidlink)
         except Exception as e:
             print("Youtube-DL Failed")
             print(e)
@@ -159,10 +162,10 @@ def linkToVNF(vidlink): # Return a VideoInfo object or die trying
         return None
 
 
-def getVNFfromLinkCache(vidlink):
+def get_vnf_from_link_cache(video_link):
     if link_cache_system == "db":
         collection = db.linkCache
-        vnf = collection.find_one({'tweet': vidlink})
+        vnf = collection.find_one({'tweet': video_link})
         if vnf != None: 
             print("Link located in DB cache")
             return vnf
@@ -170,15 +173,15 @@ def getVNFfromLinkCache(vidlink):
             print("Link not in DB cache")
             return None
     elif link_cache_system == "json":
-        if vidlink in link_cache:
+        if video_link in link_cache:
             print("Link located in json cache")
-            vnf = link_cache[vidlink]
+            vnf = link_cache[video_link]
             return vnf
         else:
             print("Link not in json cache")
             return None
 
-def addVNFtoLinkCache(vidlink, vnf):
+def add_vnf_to_link_cache(video_link, vnf):
     if link_cache_system == "db":
         try:
             out = db.linkCache.insert_one(vnf)
@@ -188,7 +191,7 @@ def addVNFtoLinkCache(vidlink, vnf):
             print("Failed to add link to DB cache")
             return None
     elif link_cache_system == "json":
-        link_cache[vidlink] = vnf
+        link_cache[video_link] = vnf
         with open("links.json", "w") as outfile: 
             json.dump(link_cache, outfile, indent=4, sort_keys=True)
             return None
@@ -197,7 +200,7 @@ def embed(vidlink, vnf):
     desc = re.sub(r' http.*t\.co\S+', '', vnf['description'].replace("#","＃"))
     return render_template('index.html', vidurl=vnf['url'], desc=desc, pic=vnf['thumbnail'], user=vnf['uploader'], vidlink=vidlink)
 
-def oEmbedGen(description, user, vidlink):
+def o_embed_gen(description, user, vidlink):
     out = {
             "type":"video",
             "version":"1.0",
