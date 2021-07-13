@@ -84,19 +84,19 @@ def info(sub_path):
 
     return result
 
-def embed_video(vidlink):
-    cached_vnf = get_vnf_from_link_cache(vidlink)
+def embed_video(video_link):
+    cached_vnf = get_vnf_from_link_cache(video_link)
 
     if cached_vnf == None:
         try:
-            vnf = link_to_vnf(vidlink)
-            add_vnf_to_link_cache(vidlink, vnf)
-            return embed(vidlink, vnf)
+            vnf = link_to_vnf(video_link)
+            add_vnf_to_link_cache(video_link, vnf)
+            return embed(video_link, vnf)
         except Exception as e:
             print(e)
             return render_template('default.html', message="Failed to scan your link!")
     else:
-        return embed(vidlink, cached_vnf)
+        return embed(video_link, cached_vnf)
 
 def video_info(url, tweet="", desc="", thumb="", uploader=""): # Return a dict of video info with default values
     vnf = {
@@ -108,9 +108,9 @@ def video_info(url, tweet="", desc="", thumb="", uploader=""): # Return a dict o
     }
     return vnf
 
-def link_to_vnf_from_api(vidlink):
+def link_to_vnf_from_api(video_link):
     print("Attempting to download tweet info from Twitter API")
-    twid = int(re.sub(r'\?.*$','',vidlink.rsplit("/", 1)[-1])) # gets the tweet ID as a int from the passed url
+    twid = int(re.sub(r'\?.*$','',video_link.rsplit("/", 1)[-1])) # gets the tweet ID as a int from the passed url
     tweet = twitter_api.statuses.show(_id=twid, tweet_mode="extended")
     if tweet['extended_entities']['media'][0]['video_info']['variants'][-1]['content_type'] == "video/mp4":
         url = tweet['extended_entities']['media'][0]['video_info']['variants'][-1]['url']
@@ -125,34 +125,34 @@ def link_to_vnf_from_api(vidlink):
     print(text)
     print(len(text))
 
-    vnf = video_info(url, vidlink, text, tweet['extended_entities']['media'][0]['media_url'], tweet['user']['name'])
+    vnf = video_info(url, video_link, text, tweet['extended_entities']['media'][0]['media_url'], tweet['user']['name'])
     return vnf
 
-def link_to_vnf_from_youtubedl(vidlink):
+def link_to_vnf_from_youtubedl(video_link):
     print("Attempting to download tweet info via YoutubeDL")
     with youtube_dl.YoutubeDL({'outtmpl': '%(id)s.%(ext)s'}) as ydl:
-        result = ydl.extract_info(vidlink, download=False)
-        vnf = video_info(result['url'], vidlink, result['description'].rsplit(' ',1)[0], result['thumbnail'], result['uploader'])
+        result = ydl.extract_info(video_link, download=False)
+        vnf = video_info(result['url'], video_link, result['description'].rsplit(' ',1)[0], result['thumbnail'], result['uploader'])
         return vnf
 
-def link_to_vnf(vidlink): # Return a VideoInfo object or die trying
+def link_to_vnf(video_link): # Return a VideoInfo object or die trying
     if config['config']['method'] == 'hybrid':
         try:
-            return link_to_vnf_from_api(vidlink)
+            return link_to_vnf_from_api(video_link)
         except Exception as e:
             print("API Failed")
             print(e)
-            return link_to_vnf_from_youtubedl(vidlink)
+            return link_to_vnf_from_youtubedl(video_link)
     elif config['config']['method'] == 'api':
         try:
-            return link_to_vnf_from_api(vidlink)
+            return link_to_vnf_from_api(video_link)
         except Exception as e:
             print("API Failed")
             print(e)
             return None
     elif config['config']['method'] == 'youtube-dl':
         try:
-            return link_to_vnf_from_youtubedl(vidlink)
+            return link_to_vnf_from_youtubedl(video_link)
         except Exception as e:
             print("Youtube-DL Failed")
             print(e)
@@ -196,11 +196,11 @@ def add_vnf_to_link_cache(video_link, vnf):
             json.dump(link_cache, outfile, indent=4, sort_keys=True)
             return None
 
-def embed(vidlink, vnf):
+def embed(video_link, vnf):
     desc = re.sub(r' http.*t\.co\S+', '', vnf['description'].replace("#","＃"))
-    return render_template('index.html', vidurl=vnf['url'], desc=desc, pic=vnf['thumbnail'], user=vnf['uploader'], vidlink=vidlink)
+    return render_template('index.html', vidurl=vnf['url'], desc=desc, pic=vnf['thumbnail'], user=vnf['uploader'], video_link=video_link)
 
-def o_embed_gen(description, user, vidlink):
+def o_embed_gen(description, user, video_link):
     out = {
             "type":"video",
             "version":"1.0",
@@ -208,7 +208,7 @@ def o_embed_gen(description, user, vidlink):
             "provider_url":"https://github.com/robinuniverse/twitfix",
             "title":description,
             "author_name":user,
-            "author_url":vidlink
+            "author_url":video_link
             }
 
     return out
