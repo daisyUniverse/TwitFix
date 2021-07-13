@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, redirect
 import youtube_dl
 import textwrap
 import twitter
@@ -9,6 +9,7 @@ import os
 
 app = Flask(__name__)
 pathregex = re.compile("\\w{1,15}\\/status\\/\\d{19}")
+discord_user_agents = ["Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:38.0) Gecko/20100101 Firefox/38.0", "Mozilla/5.0 (compatible; Discordbot/2.0; +https://discordapp.com)"]
 
 if not os.path.exists("config.json"):
     with open("config.json", "w") as outfile:
@@ -52,18 +53,22 @@ def oembedend():
 
 @app.route('/<path:subpath>')
 def twitfix(subpath):
+    user_agent = request.headers.get('user-agent')
+    if user_agent in discord_user_agents:
 
-    match = pathregex.search(subpath)
-    if match is not None:
-        twitter_url = subpath
+        match = pathregex.search(subpath)
+        if match is not None:
+            twitter_url = subpath
 
-        if match.start() == 0:
-            twitter_url = "https://twitter.com/" + subpath
+            if match.start() == 0:
+                twitter_url = "https://twitter.com/" + subpath
 
-        res = embedVideo(twitter_url)
-        return res
+            res = embedVideo(twitter_url)
+            return res
+        else:
+            return render_template('default.html', message="This doesn't seem to be a twitter link, try /other/ to see if other kinds of video link works? (experimental)")
     else:
-        return render_template('default.html', message="This doesn't seem to be a twitter link, try /other/ to see if other kinds of video link works? (experimental)")
+        return redirect("https://twitter.com/" + subpath, 301)
 
 @app.route('/other/<path:subpath>') # Show all info that Youtube-DL can get about a video as a json
 def other(subpath):
