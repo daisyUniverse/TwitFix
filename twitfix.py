@@ -14,7 +14,7 @@ discord_user_agents = ["Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:38.0) G
 # Read config from config.json. If it does not exist, create new.
 if not os.path.exists("config.json"):
     with open("config.json", "w") as outfile:
-        default_config = {"config":{"link_cache":"json","database":"[url to mongo database goes here]","method":"youtube-dl"},"api":{"api_key":"[api_key goes here]","consumer_secret":"[api_secret goes here]","access_token":"[access_token goes here]","access_secret":"[access_secret goes here]"}}
+        default_config = {"config":{"link_cache":"json","database":"[url to mongo database goes here]","method":"youtube-dl", "color":"#43B581", "appname": "TwitFix", "repo": "https://github.com/robinuniverse/twitfix", "url": "https://fxtwitter.com"},"api":{"api_key":"[api_key goes here]","api_secret":"[api_secret goes here]","access_token":"[access_token goes here]","access_secret":"[access_secret goes here]"}}
         json.dump(default_config, outfile, indent=4, sort_keys=True)
 
     config = default_config
@@ -44,9 +44,13 @@ elif link_cache_system == "db":
     client = pymongo.MongoClient(config['config']['database'], connect=False)
     db = client.TwitFix
 
-@app.route('/')
+@app.route('/') # If the useragent is discord, return the embed, if not, redirect to configured repo directly
 def default():
-    return render_template('default.html', message="TwitFix is an attempt to fix twitter video embeds in discord! created by Robin Universe :) 💖 ")
+    user_agent = request.headers.get('user-agent')
+    if user_agent in discord_user_agents:
+        return message("TwitFix is an attempt to fix twitter video embeds in discord! created by Robin Universe :)\n\n💖\n\nClick me to be redirected to the repo!")
+    else:
+        return redirect(config['config']['repo'], 301)
 
 @app.route('/oembed.json')
 def oembedend():
@@ -59,7 +63,6 @@ def oembedend():
 def twitfix(sub_path):
     user_agent = request.headers.get('user-agent')
     match = pathregex.search(sub_path)
-    print(sub_path)
     if match is not None:
         twitter_url = sub_path
 
@@ -73,15 +76,14 @@ def twitfix(sub_path):
             print("Redirect to " + twitter_url)
             return redirect(twitter_url, 301)
     else:
-        print(sub_path)
         return redirect(sub_path, 301)
 
-@app.route('/other/<path:subpath>') # Show all info that Youtube-DL can get about a video as a json
+@app.route('/other/<path:sub_path>') # Show all info that Youtube-DL can get about a video as a json
 def other(sub_path):
     res = embed_video(sub_path)
     return res
 
-@app.route('/info/<path:subpath>') # Show all info that Youtube-DL can get about a video as a json
+@app.route('/info/<path:sub_path>') # Show all info that Youtube-DL can get about a video as a json
 def info(sub_path):
     with youtube_dl.YoutubeDL({'outtmpl': '%(id)s.%(ext)s'}) as ydl:
         result = ydl.extract_info(sub_path, download=False)
@@ -98,7 +100,7 @@ def embed_video(video_link):
             return embed(video_link, vnf)
         except Exception as e:
             print(e)
-            return render_template('default.html', message="Failed to scan your link!")
+            return message("Failed to scan your link!")
     else:
         return embed(video_link, cached_vnf)
 
@@ -196,9 +198,12 @@ def add_vnf_to_link_cache(video_link, vnf):
             json.dump(link_cache, outfile, indent=4, sort_keys=True)
             return None
 
+def message(text):
+    return render_template('default.html', message=text, color=config['config']['color'], appname=config['config']['appname'], repo=config['config']['repo'], url=config['config']['url'])
+
 def embed(video_link, vnf):
     desc = re.sub(r' http.*t\.co\S+', '', vnf['description'].replace("#","＃")) # some funky string manipulation to get rid of the t.co vid link and replace # with a similar looking character, the normal # breaks when getting fed into the oembed endpoint
-    return render_template('index.html', vidurl=vnf['url'], desc=desc, pic=vnf['thumbnail'], user=vnf['uploader'], video_link=video_link)
+    return render_template('index.html', vidurl=vnf['url'], desc=desc, pic=vnf['thumbnail'], user=vnf['uploader'], video_link=video_link, color=config['config']['color'], appname=config['config']['appname'], repo=config['config']['repo'], url=config['config']['url'])
 
 def o_embed_gen(description, user, video_link):
     out = {

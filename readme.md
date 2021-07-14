@@ -1,6 +1,6 @@
 # TwitFix
 
-Flask server that serves fixed twitter video embeds to discord by using either the Twitter API or Youtube-DL to grab tweet video information
+Basic flask server that serves fixed twitter video embeds to desktop discord by using either the Twitter API or Youtube-DL to grab tweet video information 
 
 ## How to use (discord side)
 
@@ -43,6 +43,14 @@ TwitFix generates a config.json in its root directory the first time you run it,
 
 - **api**: this directly uses the twitter API to grab tweet info, limited to 900 calls per 15m
 - **hybrid**: This will start off by using the twitter API to grab tweet info, but if the rate limit is reached or the api fails for any other reason it will switch over to youtube-dl to avoid downtime
+
+**color** - Accepts a hex formatted color code, can change the embed color
+
+**appname** - Can change the app name easily wherever it's shown
+
+**repo** - used to change the repo url that some links redirect to
+
+**url** - used to tell the user where to look for the oembed endpoint, make sure to set this to your public facing url
 
 This project is licensed under the **Do What The Fuck You Want Public License**
 
