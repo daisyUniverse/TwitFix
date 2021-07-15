@@ -118,17 +118,31 @@ def link_to_vnf_from_api(video_link):
     print("Attempting to download tweet info from Twitter API")
     twid = int(re.sub(r'\?.*$','',video_link.rsplit("/", 1)[-1])) # gets the tweet ID as a int from the passed url
     tweet = twitter_api.statuses.show(_id=twid, tweet_mode="extended")
-    if tweet['extended_entities']['media'][0]['video_info']['variants'][-1]['content_type'] == "video/mp4":
-        url = tweet['extended_entities']['media'][0]['video_info']['variants'][-1]['url']
+
+    # Check to see if tweet has a video, if not, make the url passed to the VNF the first t.co link in the tweet
+    if 'extended_entities' in tweet:
+        if 'video_info' in tweet['extended_entities']['media'][0]:
+            if tweet['extended_entities']['media'][0]['video_info']['variants'][-1]['content_type'] == "video/mp4":
+                url = tweet['extended_entities']['media'][0]['video_info']['variants'][-1]['url']
+                thumb = tweet['extended_entities']['media'][0]['media_url']
+            else:
+                url = tweet['extended_entities']['media'][0]['video_info']['variants'][-2]['url']
+                thumb = tweet['extended_entities']['media'][0]['media_url']
+        else:
+            url = re.findall(r'(https?://[^\s]+)', tweet['full_text'])[0]
+            thumb = "Non video link with url"
+            print("Non video tweet, but has a link: " + url)
     else:
-        url = tweet['extended_entities']['media'][0]['video_info']['variants'][-2]['url']
+        url = re.findall(r'(https?://[^\s]+)', tweet['full_text'])[0]
+        thumb = "Non video link with url"
+        print("Non video tweet, but has a link: " + url)
 
     if len(tweet['full_text']) > 200:
         text = textwrap.shorten(tweet['full_text'], width=200, placeholder="...")
     else:
         text = tweet['full_text']
 
-    vnf = video_info(url, video_link, text, tweet['extended_entities']['media'][0]['media_url'], tweet['user']['name'])
+    vnf = video_info(url, video_link, text, thumb, tweet['user']['name'])
     return vnf
 
 def link_to_vnf_from_youtubedl(video_link):
@@ -202,8 +216,12 @@ def message(text):
     return render_template('default.html', message=text, color=config['config']['color'], appname=config['config']['appname'], repo=config['config']['repo'], url=config['config']['url'])
 
 def embed(video_link, vnf):
-    desc = re.sub(r' http.*t\.co\S+', '', vnf['description'].replace("#","＃")) # some funky string manipulation to get rid of the t.co vid link and replace # with a similar looking character, the normal # breaks when getting fed into the oembed endpoint
-    return render_template('index.html', vidurl=vnf['url'], desc=desc, pic=vnf['thumbnail'], user=vnf['uploader'], video_link=video_link, color=config['config']['color'], appname=config['config']['appname'], repo=config['config']['repo'], url=config['config']['url'])
+    print(vnf['url'])
+    if vnf['url'].startswith('https://t.co') is not True:
+        desc = re.sub(r' http.*t\.co\S+', '', vnf['description'].replace("#","＃")) # some funky string manipulation to get rid of the t.co vid link and replace # with a similar looking character, the normal # breaks when getting fed into the oembed endpoint
+        return render_template('index.html', vidurl=vnf['url'], desc=desc, pic=vnf['thumbnail'], user=vnf['uploader'], video_link=video_link, color=config['config']['color'], appname=config['config']['appname'], repo=config['config']['repo'], url=config['config']['url'])
+    else:
+        return redirect(vnf['url'], 301)
 
 def o_embed_gen(description, user, video_link):
     out = {
