@@ -10,6 +10,7 @@ import os
 app = Flask(__name__)
 pathregex = re.compile("\\w{1,15}\\/status\\/\\d{19}")
 discord_user_agents = ["Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:38.0) Gecko/20100101 Firefox/38.0", "Mozilla/5.0 (compatible; Discordbot/2.0; +https://discordapp.com)"]
+telegram_user_agents = ["TelegramBot (like TwitterBot)"]
 
 # Read config from config.json. If it does not exist, create new.
 if not os.path.exists("config.json"):
@@ -70,6 +71,9 @@ def twitfix(sub_path):
             twitter_url = "https://twitter.com/" + sub_path
 
         if user_agent in discord_user_agents:
+            res = embed_video(twitter_url)
+            return res
+        if user_agent in telegram_user_agents:
             res = embed_video(twitter_url)
             return res
         else:
