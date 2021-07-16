@@ -1,15 +1,16 @@
 {% extends 'base.html' %}
 
 {% block head %}
-    <meta content='text/html; charset=UTF-8' http-equiv='Content-Type' />
+    <!--<meta content='text/html; charset=UTF-8' http-equiv='Content-Type' />!-->
     <meta content="{{ color }}" data-react-helmet="true" name="theme-color" />
     <meta property="og:site_name" content="{{ appname }}">
 
     <meta name="twitter:card"                       content="player" />
     <meta name="twitter:title"                      content="{{ user }}" />
     <meta name="twitter:image"                      content="{{ pic }}" />
+    <!-- The line below breaks Telegram embeds if present but doesn't affect Discord embeds if removed
     <meta name="twitter:player"                     content="{{ vidurl }}" />
-    <!--<meta name="twitter:description"                content="{{ desc }}" />!-->
+    <meta name="twitter:description"                content="{{ desc }}" />!-->
     <meta name="twitter:player:width"               content="720" />
     <meta name="twitter:player:height"              content="480" />
     <meta name="twitter:player:stream"              content="{{ vidurl }}" />
