@@ -8,7 +8,7 @@ import re
 import os
 
 app = Flask(__name__)
-pathregex = re.compile("\\w{1,15}\\/status\\/\\d{19}")
+pathregex = re.compile("\\w{1,15}\\/status\\/\\d{2,20}")
 discord_user_agents = ["Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:38.0) Gecko/20100101 Firefox/38.0", "Mozilla/5.0 (compatible; Discordbot/2.0; +https://discordapp.com)"]
 telegram_user_agents = ["TelegramBot (like TwitterBot)"]
 
