@@ -58,6 +58,8 @@ This project is licensed under the **Do What The Fuck You Want Public License**
 
 ## Other stuff
 
+Using the `/dir/<video-url>` endpoint will return a redirect to the direct MP4 link, this can be useful for downloading a video
+
 Using the `/info/<video-url>` endpoint will return a json that contains all video info that youtube-dl can grab about any given video
 
 Using `/other/<video-url>` will attempt to run the twitter embed stuff on other websites videos - This is mostly experimental and doesn't really work for now 
