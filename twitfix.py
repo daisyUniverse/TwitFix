@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect
+from flask import Flask, render_template, request, redirect, Response
 import youtube_dl
 import textwrap
 import twitter
@@ -80,7 +80,7 @@ def twitfix(sub_path):
             print("Redirect to " + twitter_url)
             return redirect(twitter_url, 301)
     else:
-        return redirect(sub_path, 301)
+        return message("This doesn't appear to be a twitter URL")
 
 @app.route('/other/<path:sub_path>') # Show all info that Youtube-DL can get about a video as a json
 def other(sub_path):
@@ -94,7 +94,45 @@ def info(sub_path):
 
     return result
 
-def embed_video(video_link):
+@app.route('/dir/<path:sub_path>')
+def dir(sub_path):
+    user_agent = request.headers.get('user-agent')
+    url = sub_path
+    match = pathregex.search(url)
+    if match is not None:
+        twitter_url = url
+
+        if match.start() == 0:
+            twitter_url = "https://twitter.com/" + url
+
+        if user_agent in discord_user_agents:
+            res = message('Click the link to be redirected to the Direct MP4 Link')
+            return res
+        if user_agent in telegram_user_agents:
+            res = message('Click the link to be redirected to the Direct MP4 Link')
+            return res
+        else:
+            print("Redirect to direct MP4 URL")
+            return direct_video(twitter_url)
+    else:
+        return redirect(url, 301)
+
+def direct_video(video_link): # Just get a redirect to a MP4 link from any tweet link
+    cached_vnf = get_vnf_from_link_cache(video_link)
+    if cached_vnf == None:
+        try:
+            vnf = link_to_vnf(video_link)
+            add_vnf_to_link_cache(video_link, vnf)
+            return redirect(vnf['url'], 301)
+            print("Redirecting to direct URL: " + vnf['url'])
+        except Exception as e:
+            print(e)
+            return message("Failed to scan your link!")
+    else:
+        return redirect(cached_vnf['url'], 301)
+        print("Redirecting to direct URL: " + vnf['url'])
+
+def embed_video(video_link): # Return Embed from any tweet link
     cached_vnf = get_vnf_from_link_cache(video_link)
 
     if cached_vnf == None:
@@ -102,6 +140,7 @@ def embed_video(video_link):
             vnf = link_to_vnf(video_link)
             add_vnf_to_link_cache(video_link, vnf)
             return embed(video_link, vnf)
+
         except Exception as e:
             print(e)
             return message("Failed to scan your link!")
