@@ -6,11 +6,11 @@ import pymongo
 import json
 import re
 import os
+import urllib.parse
 
 app = Flask(__name__)
 pathregex = re.compile("\\w{1,15}\\/status\\/\\d{2,20}")
-discord_user_agents = ["Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:38.0) Gecko/20100101 Firefox/38.0", "Mozilla/5.0 (compatible; Discordbot/2.0; +https://discordapp.com)"]
-telegram_user_agents = ["TelegramBot (like TwitterBot)"]
+generate_embed_user_agents = ["Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:38.0) Gecko/20100101 Firefox/38.0", "Mozilla/5.0 (compatible; Discordbot/2.0; +https://discordapp.com)", "TelegramBot (like TwitterBot)", "test"]
 
 # Read config from config.json. If it does not exist, create new.
 if not os.path.exists("config.json"):
@@ -48,7 +48,7 @@ elif link_cache_system == "db":
 @app.route('/') # If the useragent is discord, return the embed, if not, redirect to configured repo directly
 def default():
     user_agent = request.headers.get('user-agent')
-    if user_agent in discord_user_agents:
+    if user_agent in generate_embed_user_agents:
         return message("TwitFix is an attempt to fix twitter video embeds in discord! created by Robin Universe :)\n\n💖\n\nClick me to be redirected to the repo!")
     else:
         return redirect(config['config']['repo'], 301)
@@ -70,12 +70,10 @@ def twitfix(sub_path):
         if match.start() == 0:
             twitter_url = "https://twitter.com/" + sub_path
 
-        if user_agent in discord_user_agents:
+        if user_agent in generate_embed_user_agents:
             res = embed_video(twitter_url)
             return res
-        if user_agent in telegram_user_agents:
-            res = embed_video(twitter_url)
-            return res
+
         else:
             print("Redirect to " + twitter_url)
             return redirect(twitter_url, 301)
@@ -105,12 +103,10 @@ def dir(sub_path):
         if match.start() == 0:
             twitter_url = "https://twitter.com/" + url
 
-        if user_agent in discord_user_agents:
+        if user_agent in generate_embed_user_agents:
             res = message('Click the link to be redirected to the Direct MP4 Link')
             return res
-        if user_agent in telegram_user_agents:
-            res = message('Click the link to be redirected to the Direct MP4 Link')
-            return res
+
         else:
             print("Redirect to direct MP4 URL")
             return direct_video(twitter_url)
@@ -261,8 +257,11 @@ def message(text):
 def embed(video_link, vnf):
     print(vnf['url'])
     if vnf['url'].startswith('https://t.co') is not True:
-        desc = re.sub(r' http.*t\.co\S+', '', vnf['description'].replace("#","＃")) # some funky string manipulation to get rid of the t.co vid link and replace # with a similar looking character, the normal # breaks when getting fed into the oembed endpoint
-        return render_template('index.html', vidurl=vnf['url'], desc=desc, pic=vnf['thumbnail'], user=vnf['uploader'], video_link=video_link, color=config['config']['color'], appname=config['config']['appname'], repo=config['config']['repo'], url=config['config']['url'])
+        desc = re.sub(r' http.*t\.co\S+', '', vnf['description'])
+        urlUser = urllib.parse.quote(vnf['uploader'])
+        urlDesc = urllib.parse.quote(desc)
+        urlLink = urllib.parse.quote(video_link)
+        return render_template('index.html', vidurl=vnf['url'], desc=desc, pic=vnf['thumbnail'], user=vnf['uploader'], video_link=video_link, color=config['config']['color'], appname=config['config']['appname'], repo=config['config']['repo'], url=config['config']['url'], urlDesc=urlDesc, urlUser=urlUser, urlLink=urlLink)
     else:
         return redirect(vnf['url'], 301)
 
