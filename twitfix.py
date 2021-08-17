@@ -10,7 +10,7 @@ import urllib.parse
 
 app = Flask(__name__)
 pathregex = re.compile("\\w{1,15}\\/status\\/\\d{2,20}")
-generate_embed_user_agents = ["Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:38.0) Gecko/20100101 Firefox/38.0", "Mozilla/5.0 (compatible; Discordbot/2.0; +https://discordapp.com)", "TelegramBot (like TwitterBot)", "test"]
+generate_embed_user_agents = ["Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:38.0) Gecko/20100101 Firefox/38.0", "Mozilla/5.0 (compatible; Discordbot/2.0; +https://discordapp.com)", "TelegramBot (like TwitterBot)", "Mozilla/5.0 (compatible; January/1.0; +https://gitlab.insrt.uk/revolt/january)", "test"]
 
 # Read config from config.json. If it does not exist, create new.
 if not os.path.exists("config.json"):
