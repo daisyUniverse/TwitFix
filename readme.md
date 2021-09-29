@@ -28,6 +28,8 @@ Here's a a list of the people who help to keep this project alive
 
 1. First Contributor and Twitter Funnyman **Chris Burwell** ( [@countchrisdo](https://twitter.com/countchrisdo) on Twitter )
 
+2. Highest Contributor, Suspciously wealthy furry, and a very loving friend **Vectrobe** ( [@Vectrobe](https://twitter.com/Vectrobe) on Twitter )
+
 
 ## How to run (server side)
 
