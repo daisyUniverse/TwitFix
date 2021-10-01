@@ -9,7 +9,7 @@ import os
 import urllib.parse
 
 app = Flask(__name__)
-pathregex = re.compile("\\w{1,15}\\/status\\/\\d{2,20}")
+pathregex = re.compile("\\w{1,15}\\/(status|statuses)\\/\\d{2,20}")
 generate_embed_user_agents = ["Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:38.0) Gecko/20100101 Firefox/38.0", "Mozilla/5.0 (compatible; Discordbot/2.0; +https://discordapp.com)", "TelegramBot (like TwitterBot)", "Mozilla/5.0 (compatible; January/1.0; +https://gitlab.insrt.uk/revolt/january)", "test"]
 
 # Read config from config.json. If it does not exist, create new.
@@ -64,6 +64,8 @@ def oembedend():
 def twitfix(sub_path):
     user_agent = request.headers.get('user-agent')
     match = pathregex.search(sub_path)
+    if sub_path.endswith(".mp4"):
+        return dir(sub_path.replace(".mp4",""))
     if match is not None:
         twitter_url = sub_path
 
@@ -104,7 +106,7 @@ def dir(sub_path):
             twitter_url = "https://twitter.com/" + url
 
         if user_agent in generate_embed_user_agents:
-            res = message('Click the link to be redirected to the Direct MP4 Link')
+            res = embed_video(twitter_url)
             return res
 
         else:
