@@ -94,13 +94,17 @@ def twitfix(sub_path):
 
 @app.route('/other/<path:sub_path>') # Show all info that Youtube-DL can get about a video as a json
 def other(sub_path):
-    res = embed_video(sub_path)
+    otherurl = request.url.split("/other/", 1)[1].replace(":/","://")
+    print("[ OTHER ]  Other URL embed attempted: " + otherurl)
+    res = embed_video(otherurl)
     return res
 
 @app.route('/info/<path:sub_path>') # Show all info that Youtube-DL can get about a video as a json
 def info(sub_path):
+    infourl = request.url.split("/info/", 1)[1].replace(":/","://")
+    print("[ INFO ] Info data requested: " + infourl)
     with youtube_dl.YoutubeDL({'outtmpl': '%(id)s.%(ext)s'}) as ydl:
-        result = ydl.extract_info(sub_path, download=False)
+        result = ydl.extract_info(infourl, download=False)
 
     return result
 
