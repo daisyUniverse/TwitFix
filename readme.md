@@ -26,10 +26,11 @@ TwitFix is run for free, period, I have no plans to monetize it directly in any 
 
 Here's a a list of the people who help to keep this project alive
 
-1. First Contributor and Twitter Funnyman **Chris Burwell** ( [@countchrisdo](https://twitter.com/countchrisdo) on Twitter )
+1. [$3] First Contributor and Twitter Funnyman **Chris Burwell** ( [@countchrisdo](https://twitter.com/countchrisdo) on Twitter )
 
-2. Highest Contributor, Suspciously wealthy furry, and a very loving friend **Vectrobe** ( [@Vectrobe](https://twitter.com/Vectrobe) on Twitter )
+2. [$9] Previously highest Contributor, Suspciously wealthy furry, and a very loving friend **Vectrobe** ( [@Vectrobe](https://twitter.com/Vectrobe) on Twitter )
 
+3. [$10] New highest monthly contributor, helloitscrash!
 
 ## How to run (server side)
 
@@ -70,6 +71,8 @@ This project is licensed under the **Do What The Fuck You Want Public License**
 
 
 ## Other stuff
+
+Going to `https://fxtwitter.com/latest/` will present a page that shows the latest video that was added to the database, use with caution as results may be nsfw!
 
 Using the `/dir/<video-url>` endpoint will return a redirect to the direct MP4 link, this can be useful for downloading a video
 
