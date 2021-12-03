@@ -1,0 +1,15 @@
+<div id="block" onclick="unblock();">
+Potentially NSFW Content: Click if you are over 18
+</div>
+<a href="{{ repo }}">TwitFix</a> Latest Video </br>
+WARNING: Video content is not screened so may contain NSFW Content </br></br>
+ <video width="720" height="480" controls>
+  <source src="{{ vidlink }}" type="video/mp4">
+</video>
+</br></br>
+<a href="{{ tweet }}">Original Tweet</a></br>
+Original Author: {{ user }} </br>
+<button onClick="window.location.reload();">Another?</button>
+<button onclick="navigator.clipboard.writeText('{{ vidlink }}');
+">Copy Link!</button>
+{% endblock %}
