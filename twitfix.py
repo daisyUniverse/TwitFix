@@ -10,7 +10,7 @@ import urllib.parse
 
 app = Flask(__name__)
 pathregex = re.compile("\\w{1,15}\\/(status|statuses)\\/\\d{2,20}")
-generate_embed_user_agents = ["Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:38.0) Gecko/20100101 Firefox/38.0", "Mozilla/5.0 (compatible; Discordbot/2.0; +https://discordapp.com)", "TelegramBot (like TwitterBot)", "Mozilla/5.0 (compatible; January/1.0; +https://gitlab.insrt.uk/revolt/january)", "test"]
+generate_embed_user_agents = ["Slackbot-LinkExpanding 1.0 (+https://api.slack.com/robots)", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:38.0) Gecko/20100101 Firefox/38.0", "Mozilla/5.0 (compatible; Discordbot/2.0; +https://discordapp.com)", "TelegramBot (like TwitterBot)", "Mozilla/5.0 (compatible; January/1.0; +https://gitlab.insrt.uk/revolt/january)", "test"]
 
 # Read config from config.json. If it does not exist, create new.
 if not os.path.exists("config.json"):
@@ -45,6 +45,16 @@ elif link_cache_system == "db":
     client = pymongo.MongoClient(config['config']['database'], connect=False)
     db = client.TwitFix
 
+@app.route('/latest/') # Try to return the latest video
+def latest():
+        vnf = db.linkCache.find_one(sort = [('_id', pymongo.DESCENDING)])
+        desc = re.sub(r' http.*t\.co\S+', '', vnf['description'])
+        urlUser = urllib.parse.quote(vnf['uploader'])
+        urlDesc = urllib.parse.quote(desc)
+        urlLink = urllib.parse.quote(vnf['url'])
+        print(" [ ✔ ] Latest video page loaded: " + vnf['tweet'] )
+        return render_template('inline.html', vidlink=vnf['url'], vidurl=vnf['url'], desc=desc, pic=vnf['thumbnail'], user=vnf['uploader'], video_link=vnf['url'], color=config['config']['color'], appname=config['config']['appname'], repo=config['config']['repo'], url=config['config']['url'], urlDesc=urlDesc, urlUser=urlUser, urlLink=urlLink, tweet=vnf['tweet'])
+
 @app.route('/') # If the useragent is discord, return the embed, if not, redirect to configured repo directly
 def default():
     user_agent = request.headers.get('user-agent')
@@ -77,7 +87,7 @@ def twitfix(sub_path):
             return res
 
         else:
-            print("Redirect to " + twitter_url)
+            print(" [ R ] Redirect to " + twitter_url)
             return redirect(twitter_url, 301)
     else:
         return message("This doesn't appear to be a twitter URL")
@@ -110,7 +120,7 @@ def dir(sub_path):
             return res
 
         else:
-            print("Redirect to direct MP4 URL")
+            print(" [ R ] Redirect to direct MP4 URL")
             return direct_video(twitter_url)
     else:
         return redirect(url, 301)
@@ -122,13 +132,13 @@ def direct_video(video_link): # Just get a redirect to a MP4 link from any tweet
             vnf = link_to_vnf(video_link)
             add_vnf_to_link_cache(video_link, vnf)
             return redirect(vnf['url'], 301)
-            print("Redirecting to direct URL: " + vnf['url'])
+            print(" [ D ] Redirecting to direct URL: " + vnf['url'])
         except Exception as e:
             print(e)
             return message("Failed to scan your link!")
     else:
         return redirect(cached_vnf['url'], 301)
-        print("Redirecting to direct URL: " + vnf['url'])
+        print(" [ D ] Redirecting to direct URL: " + vnf['url'])
 
 def embed_video(video_link): # Return Embed from any tweet link
     cached_vnf = get_vnf_from_link_cache(video_link)
@@ -156,7 +166,7 @@ def video_info(url, tweet="", desc="", thumb="", uploader=""): # Return a dict o
     return vnf
 
 def link_to_vnf_from_api(video_link):
-    print("Attempting to download tweet info from Twitter API")
+    print(" [ + ] Attempting to download tweet info from Twitter API")
     twid = int(re.sub(r'\?.*$','',video_link.rsplit("/", 1)[-1])) # gets the tweet ID as a int from the passed url
     tweet = twitter_api.statuses.show(_id=twid, tweet_mode="extended")
 
@@ -172,11 +182,11 @@ def link_to_vnf_from_api(video_link):
         else:
             url = re.findall(r'(https?://[^\s]+)', tweet['full_text'])[0]
             thumb = "Non video link with url"
-            print("Non video tweet, but has a link: " + url)
+            print(" [ NV ] Non video tweet, but has a link: " + url)
     else:
         url = re.findall(r'(https?://[^\s]+)', tweet['full_text'])[0]
         thumb = "Non video link with url"
-        print("Non video tweet, but has a link: " + url)
+        print(" [ NV ] Non video tweet, but has a link: " + url)
 
     if len(tweet['full_text']) > 200:
         text = textwrap.shorten(tweet['full_text'], width=200, placeholder="...")
@@ -205,14 +215,14 @@ def link_to_vnf(video_link): # Return a VideoInfo object or die trying
         try:
             return link_to_vnf_from_api(video_link)
         except Exception as e:
-            print("API Failed")
+            print(" [ X ] API Failed")
             print(e)
             return None
     elif config['config']['method'] == 'youtube-dl':
         try:
             return link_to_vnf_from_youtubedl(video_link)
         except Exception as e:
-            print("Youtube-DL Failed")
+            print(" [ X ] Youtube-DL Failed")
             print(e)
             return None
     else:
@@ -223,11 +233,11 @@ def get_vnf_from_link_cache(video_link):
     if link_cache_system == "db":
         collection = db.linkCache
         vnf = collection.find_one({'tweet': video_link})
-        if vnf != None: 
-            print("Link located in DB cache")
+        if vnf != None:
+            print(" [ ✔ ] Link located in DB cache")
             return vnf
         else:
-            print("Link not in DB cache")
+            print(" [ X ] Link not in DB cache")
             return None
     elif link_cache_system == "json":
         if video_link in link_cache:
@@ -235,21 +245,21 @@ def get_vnf_from_link_cache(video_link):
             vnf = link_cache[video_link]
             return vnf
         else:
-            print("Link not in json cache")
+            print(" [ X ] Link not in json cache")
             return None
 
 def add_vnf_to_link_cache(video_link, vnf):
     if link_cache_system == "db":
         try:
             out = db.linkCache.insert_one(vnf)
-            print("Link added to DB cache")
+            print(" [ + ] Link added to DB cache ")
             return True
         except Exception:
-            print("Failed to add link to DB cache")
+            print(" [ X ] Failed to add link to DB cache")
             return None
     elif link_cache_system == "json":
         link_cache[video_link] = vnf
-        with open("links.json", "w") as outfile: 
+        with open("links.json", "w") as outfile:
             json.dump(link_cache, outfile, indent=4, sort_keys=True)
             return None
 
@@ -257,13 +267,13 @@ def message(text):
     return render_template('default.html', message=text, color=config['config']['color'], appname=config['config']['appname'], repo=config['config']['repo'], url=config['config']['url'])
 
 def embed(video_link, vnf):
-    print(vnf['url'])
+    print(" [ E ] Embedding " + vnf['url'])
     if vnf['url'].startswith('https://t.co') is not True:
         desc = re.sub(r' http.*t\.co\S+', '', vnf['description'])
         urlUser = urllib.parse.quote(vnf['uploader'])
         urlDesc = urllib.parse.quote(desc)
         urlLink = urllib.parse.quote(video_link)
-        return render_template('index.html', vidurl=vnf['url'], desc=desc, pic=vnf['thumbnail'], user=vnf['uploader'], video_link=video_link, color=config['config']['color'], appname=config['config']['appname'], repo=config['config']['repo'], url=config['config']['url'], urlDesc=urlDesc, urlUser=urlUser, urlLink=urlLink)
+        return render_template('index.html', vidlink=vnf['url'],  vidurl=vnf['url'], desc=desc, pic=vnf['thumbnail'], user=vnf['uploader'], video_link=video_link, color=config['config']['color'], appname=config['config']['appname'], repo=config['config']['repo'], url=config['config']['url'], urlDesc=urlDesc, urlUser=urlUser, urlLink=urlLink)
     else:
         return redirect(vnf['url'], 301)
 
