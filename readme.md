@@ -18,6 +18,12 @@ You can also simply type out 'fx' directly before 'twitter.com' in any valid twi
 
 **Note**: If you enjoy this service, please considering donating via [Ko-Fi](https://ko-fi.com/robin_universe) to help cover server costs
 
+## Child Projects:
+
+[TwitFix-Bot](https://github.com/robinuniverse/TwitFix-Bot) - A discord bot for automatically converting normal twitter links posted by users into twitfix links
+
+[TwitFix-Extension](https://github.com/robinuniverse/TwitFix-Extension) - A browser extention that lets you right click twitter videos to copy a twitfix link to your clipboard
+
 # Monthly Contributors
 
 TwitFix is run for free, period, I have no plans to monetize it directly in any way ( no ads, no premium accounts with more features ) so I rely on donations to keep TwitFix running, and I have created the option to [donate on a monthly basis using my KoFi](https://ko-fi.com/robin_universe#tier16328580186740)
