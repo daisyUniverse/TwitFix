@@ -76,6 +76,10 @@ Going to `https://fxtwitter.com/latest/` will present a page that shows the late
 
 Using the `/dir/<video-url>` endpoint will return a redirect to the direct MP4 link, this can be useful for downloading a video
 
+Using the `/dl/<video-url>` or appending a `.mp4` (before any ?t= params) will make the server download the video and return a static, locally hosted copy
+
+Using the subdomain `d.fxtwitter.com/<video-url>` will redirect to a direct MP4 url hosted on Twitter
+
 Using the `/info/<video-url>` endpoint will return a json that contains all video info that youtube-dl can grab about any given video
 
 Using `/other/<video-url>` will attempt to run the twitter embed stuff on other websites videos - This is mostly experimental and doesn't really work for now 
