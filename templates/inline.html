@@ -1,67 +1,133 @@
 {% extends 'base.html' %}
 
 {% block head %}
-   <title> TwitFix Latest</title>
-   <script>
-        function unblock() {
-                var v = document.getElementById("block");
-                v.style.display = "none";
-        }
-   </script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Bowlby+One+SC&family=Paytone+One&display=swap');
-        @import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@500&display=swap');
+<title> TwitFix Latest</title>
+<script>
+    window.onload = () => {
+        document.querySelector("#block>div").addEventListener('click', () => document.getElementById("block").style.display = "none");
+        document.getElementById("another").addEventListener('click', () => window.location.reload());
+        document.getElementById("copy").addEventListener('click', () => navigator.clipboard.writeText('{{ vidlink }}'));
+    };
+</script>
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Bowlby+One+SC&family=Paytone+One&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@500&display=swap');
+    html,
+    body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+    }
+    
+    body {
+        text-align: center;
+        background: #222222;
+        color: #e8e8e8;
+        font-family: 'Paytone One', sans-serif;
+        font-size: 4vmin;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-evenly;
+        align-items: center;
+        overflow: hidden;
+    }
+    
+    body div {
+        font-size: 75%;
+    }
+    
+    video {
+        box-sizing: border-box;
+        height: auto;
+        width: auto;
+        max-width: 80%;
+        max-height: 80%;
+        flex: 1;
+    }
+    
+    a {
+        color: #8ebf42;
+    }
+    
+    a:hover {
+        color: #e8e8e8;
+    }
+    
+    #block {
+        position: fixed;
+        box-sizing: border-box;
+        width: 100%;
+        height: 100%;
+        z-index: 99;
+        background: #222222;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    #block>div {
+        padding: 2vh 2vw;
+        border: solid .5vmin #c5c5c5;
+        border-radius: .5vmin;
+        transition-duration: .15s;
+        transition-timing-function: ease-in-out;
+        cursor: pointer;
+        user-select: none;
+    }
+    
+    #block>div:hover {
+        transform: scale(1.02);
+        border: solid .5vmin #8ebf42;
+    }
+    
+    #block>div:active {
+        transform: scale(.98);
+    }
+    
+    #btns {
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        gap: 1vmax;
+    }
+    
+    #btns div {
+        cursor: pointer;
+        border: solid .3vmin #c5c5c5;
+        border-radius: .3vmin;
+        padding: .3vmin;
+    }
+    
+    #btns div:hover {
+        border: solid .3vmin #8ebf42;
+    }
+</style>
+<link rel="alternate" href="{{ url }}/oembed.json?desc={{ urlUser }}&user={{ urlDesc }}&link={{ urlLink }}" type="application/json+oembed" title="{{ user }}"> 
 
-        html, body {
-                height: 100%;
-                text-align:center;
-                background: #222222;
-                color: white;
-                font-family: 'Paytone One', sans-serif;
-                font-size: 2vw;
-        }
-
-        html {
-                display: table;
-                margin: auto;
-        }
-
-        body {
-                display: table-cell;
-                vertical-align: middle;
-                text-align:center;
-        }
-
-        a {
-                color: #8ebf42;
-        }
-
-        #block {
-                position: fixed;
-                height: 100%;
-                width: 75%;
-                background: #222222;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-        }
-    </style>
-    <link rel="alternate" href="{{ url }}/oembed.json?desc={{ urlUser }}&user={{ urlDesc }}&link={{ urlLink }}" type="application/json+oembed" title="{{ user }}">
-{% endblock %}
+{% endblock %} 
 
 {% block body %}
-<div id="block" onclick="unblock();">
-Potentially NSFW Content: Click if you are over 18
+
+<div id="block">
+    <div>
+        Potentially NSFW Content: Click here if you are over 18
+    </div>
 </div>
-<a href="{{ repo }}">TwitFix</a> Latest Video </br>
-WARNING: Video content is not screened so may contain NSFW Content </br></br>
- <video width="720" height="480" controls>
-  <source src="{{ vidlink }}" type="video/mp4">
-</video>
-</br></br>
-<a href="{{ tweet }}">Original Tweet</a></br>
-Original Author: {{ user }} </br>
-<button onClick="window.location.reload();">Another?</button>
-<button onclick="navigator.clipboard.writeText('{{ vidlink }}');
-">Copy Link!</button>
+<div><a href="{{ repo }}">TwitFix</a> Latest Video</div>
+<div>WARNING: Video content is not screened so it may contain NSFW Content</div>
+<video width="720" height="480" controls>
+        <source src="{{ vidlink }}" type="video/mp4">
+    </video>
+<div id="btns">
+    <div id="another">Another?</div>
+    <div id="copy">Copy Link!</div>
+</div>
+<div>
+    <a href="{{ tweet }}">Original Tweet</a>
+    <div>
+        Original Author: DitzyFlama
+    </div>
+</div>
+
 {% endblock %}
