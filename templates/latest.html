@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Twitfix Latest</title>
+    <link rel="stylesheet" href={{ url_for('static', filename='style.css') }}>
+    <link href="https://fonts.googleapis.com/css2?family=Paytone+One&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <script src={{ url_for('static', filename='main.js') }}></script>
+
+    <div class="previmgcont" onclick="document.querySelector('.previmgcont').style.display = 'none'; "
+        style="display: none;">
+        <img loading=lazy class="previmg" alt="Image Preview">
+    </div>
+
+    <div class="base">
+        <div id="block">
+            <p class="warn">Warning!!</p>
+            <p>Twitfix does not filter out any content.</p>
+            <p>Following content is most certainly NSFW.</p>
+            <p>Prepare yourself mentally and pick one of the options</p>
+            <p>Do you want to see the latest twitfix requests?</p>
+            <br>
+            <div class="boptions">
+                <div onclick="cookieTime()">Yes, don't ask again!</div>
+                <div onclick="forNow()">Yes, for now.</div>
+                <div onclick="window.location.replace('https://github.com/robinuniverse/TwitFix')">No, please take me
+                    out of here</div>
+            </div>
+        </div>
+        <a href="https://github.com/robinuniverse/TwitFix" class="top" rel="noreferrer" target="_blank">TwitFix
+            Latest</a>
+        <div class="bottom">
+            <div class="info side">
+                <div>TwitFix</div>
+                <div class="Iinner">
+                    Basic flask server that serves fixed twitter video embeds to desktop discord by using either the
+                    Twitter API or Youtube-DL to grab tweet video information. This also automatically embeds the first
+                    link in the text of non video tweets (API Only).
+                </div>
+                <br>
+                <div>TwitFix Latest</div>
+                <div class="Iinner">
+                    Shows the most recent TwitFix API requests in a list like manner.
+                </div>
+                <br>
+                <div class="Iinner">
+                    TwitFix by <a href="https://hirob.in/" target="_blank" rel="noopener noreferrer">Robin
+                        ✨Universe</a><br><br>
+                    Site Design by <a href="https://twitter.com/doruksega" target="_blank"
+                        rel="noopener noreferrer">Doruk</a>
+                </div>
+            </div>
+            <div class="tweetCont">
+            </div>
+            <div class="settings side">
+                <div>Settings</div>
+                <input type="checkbox" id="contwarn" name="contwarn">
+                <label class="opt" for="contwarn">Skip Content Warning</label>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
