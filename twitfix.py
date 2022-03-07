@@ -1,4 +1,5 @@
-from flask import Flask, render_template, request, redirect, Response, send_from_directory, url_for, send_file, make_response
+from flask import Flask, render_template, request, redirect, Response, send_from_directory, url_for, send_file, make_response, jsonify
+from flask_cors import CORS
 import youtube_dl
 import textwrap
 import twitter
@@ -9,8 +10,11 @@ import re
 import os
 import urllib.parse
 import urllib.request
+from datetime import date
 
 app = Flask(__name__)
+CORS(app)
+
 pathregex = re.compile("\\w{1,15}\\/(status|statuses)\\/\\d{2,20}")
 generate_embed_user_agents = [
     "facebookexternalhit/1.1", 
@@ -30,6 +34,7 @@ if not os.path.exists("config.json"):
             "config":{
                 "link_cache":"json",
                 "database":"[url to mongo database goes here]",
+                "table":"TwiFix",
                 "method":"youtube-dl", 
                 "color":"#43B581", 
                 "appname": "TwitFix", 
@@ -70,31 +75,92 @@ if link_cache_system == "json":
     f.close()
 elif link_cache_system == "db":
     client = pymongo.MongoClient(config['config']['database'], connect=False)
-    db = client.TwitFix
+    table = config['config']['table']
+    db = client[table]
 
 @app.route('/bidoof/')
 def bidoof():
     return redirect("https://cdn.discordapp.com/attachments/291764448757284885/937343686927319111/IMG_20211226_202956_163.webp", 301)
 
-@app.route('/latest/') # Try to return the latest video
+@app.route('/stats/')
+def statsPage():
+    today = str(date.today())
+    stats = getStats(today)
+    return render_template('stats.html', embeds=stats['embeds'], downloadss=stats['downloads'], api=stats['api'], linksCached=stats['linksCached'], date=today)
+
+@app.route('/latest/')
 def latest():
-	vnf     = db.linkCache.find_one(sort = [('_id', pymongo.DESCENDING)])
-	desc    = re.sub(r' http.*t\.co\S+', '', vnf['description'])
-	urlUser = urllib.parse.quote(vnf['uploader'])
-	urlDesc = urllib.parse.quote(desc)
-	urlLink = urllib.parse.quote(vnf['url'])
-	print(" ➤ [ ✔ ] Latest video page loaded: " + vnf['tweet'] )
-	return render_template('inline.html', page="Latest", vidlink=vnf['url'], vidurl=vnf['url'], desc=desc, pic=vnf['thumbnail'], user=vnf['uploader'], video_link=vnf['url'], color=config['config']['color'], appname=config['config']['appname'], repo=config['config']['repo'], url=config['config']['url'], urlDesc=urlDesc, urlUser=urlUser, urlLink=urlLink, tweet=vnf['tweet'])
+    return render_template('latest.html')
+
+@app.route('/copy.svg') # Return a SVG needed for Latest
+def icon():
+    return send_from_directory(os.path.join(app.root_path, 'static'),
+                          'copy.svg',mimetype='image/svg+xml') 
+
+@app.route('/font.ttf') # Return a font needed for Latest
+def font():
+    return send_from_directory(os.path.join(app.root_path, 'static'),
+                          'NotoColorEmoji.ttf',mimetype='application/octet-stream') 
 
 @app.route('/top/') # Try to return the most hit video
 def top():
-	vnf     = db.linkCache.find_one(sort = [('hits', pymongo.DESCENDING)])
-	desc    = re.sub(r' http.*t\.co\S+', '', vnf['description'])
-	urlUser = urllib.parse.quote(vnf['uploader'])
-	urlDesc = urllib.parse.quote(desc)
-	urlLink = urllib.parse.quote(vnf['url'])
-	print(" ➤ [ ✔ ] Top video page loaded: " + vnf['tweet'] )
-	return render_template('inline.html', page="Top", vidlink=vnf['url'], vidurl=vnf['url'], desc=desc, pic=vnf['thumbnail'], user=vnf['uploader'], video_link=vnf['url'], color=config['config']['color'], appname=config['config']['appname'], repo=config['config']['repo'], url=config['config']['url'], urlDesc=urlDesc, urlUser=urlUser, urlLink=urlLink, tweet=vnf['tweet'])
+    vnf     = db.linkCache.find_one(sort = [('hits', pymongo.DESCENDING)])
+    desc    = re.sub(r' http.*t\.co\S+', '', vnf['description'])
+    urlUser = urllib.parse.quote(vnf['uploader'])
+    urlDesc = urllib.parse.quote(desc)
+    urlLink = urllib.parse.quote(vnf['url'])
+    print(" ➤ [ ✔ ] Top video page loaded: " + vnf['tweet'] )
+    return render_template('inline.html', page="Top", vidlink=vnf['url'], vidurl=vnf['url'], desc=desc, pic=vnf['thumbnail'], user=vnf['uploader'], video_link=vnf['url'], color=config['config']['color'], appname=config['config']['appname'], repo=config['config']['repo'], url=config['config']['url'], urlDesc=urlDesc, urlUser=urlUser, urlLink=urlLink, tweet=vnf['tweet'])
+
+@app.route('/api/latest/')  # Return some raw VNF data sorted by top tweets
+def apiLatest():
+    bigvnf   = []
+
+    tweets   = request.args.get("tweets", default=10, type=int)
+    page     = request.args.get("page", default=0, type=int)
+
+    if tweets > 15:
+        tweets = 1
+
+    vnf      = db.linkCache.find(sort = [('_id', pymongo.DESCENDING)]).skip(tweets * page).limit(tweets)
+
+    for r in vnf:
+        bigvnf.append(r)
+
+    print(" ➤ [ ✔ ] Latest video API called")
+    addToStat('api')
+    return Response(response=json.dumps(bigvnf, default=str), status=200, mimetype="application/json")
+
+@app.route('/api/top/') # Return some raw VNF data sorted by top tweets
+def apiTop():
+    bigvnf   = []
+
+    tweets   = request.args.get("tweets", default=10, type=int)
+    page     = request.args.get("page", default=0, type=int)
+
+    if tweets > 15:
+        tweets = 1
+
+    vnf      = db.linkCache.find(sort = [('hits', pymongo.DESCENDING )]).skip(tweets * page).limit(tweets)
+
+    for r in vnf:
+        bigvnf.append(r)
+
+    print(" ➤ [ ✔ ] Top video API called")
+    addToStat('api')
+    return Response(response=json.dumps(bigvnf, default=str), status=200, mimetype="application/json")
+
+@app.route('/api/stats/') # Return a json of a usage stats for a given date (defaults to today)
+def apiStats():
+    try:
+        addToStat('api')
+        today = str(date.today())
+        desiredDate = request.args.get("date", default=today, type=str)
+        stat = getStats(desiredDate)
+        print (" ➤ [ ✔ ] Stats API called")
+        return Response(response=json.dumps(stat, default=str), status=200, mimetype="application/json")
+    except:
+        print (" ➤ [ ✔ ] Stats API failed")
 
 @app.route('/') # If the useragent is discord, return the embed, if not, redirect to configured repo directly
 def default():
@@ -116,6 +182,7 @@ def oembedend():
 def twitfix(sub_path):
     user_agent = request.headers.get('user-agent')
     match = pathregex.search(sub_path)
+    print(request.url)
 
     if request.url.startswith("https://d.fx"): # Matches d.fx? Try to give the user a direct link
         if user_agent in generate_embed_user_agents:
@@ -128,12 +195,27 @@ def twitfix(sub_path):
             print(" ➤ [ R ] Redirect to MP4 using d.fxtwitter.com")
             return dir(sub_path)
 
-    elif sub_path.endswith(".mp4"):
-        if "?" not in request.url:
-            return dl(sub_path)
-        else:
-            return message("To use a direct MP4 link in discord, remove anything past '?' and put '.mp4' at the end")
+    elif request.url.endswith(".mp4") or request.url.endswith("%2Emp4"):
+        twitter_url = "https://twitter.com/" + sub_path
         
+        if "?" not in request.url:
+            clean = twitter_url[:-4]
+        else:
+            clean = twitter_url
+
+        return dl(clean)
+
+    elif request.url.endswith("/1") or request.url.endswith("/2") or request.url.endswith("/3") or request.url.endswith("/4") or request.url.endswith("%2F1") or request.url.endswith("%2F2") or request.url.endswith("%2F3") or request.url.endswith("%2F4"):
+        twitter_url = "https://twitter.com/" + sub_path
+        
+        if "?" not in request.url:
+            clean = twitter_url[:-2]
+        else:
+            clean = twitter_url
+
+        image = ( int(request.url[-1]) - 1 )
+        return embed_video(clean, image)
+
     if match is not None:
         twitter_url = sub_path
 
@@ -184,6 +266,7 @@ def dl(sub_path):
         print(" ➤ [[ FILE EXISTS ]]")
     else:
         print(" ➤ [[ FILE DOES NOT EXIST, DOWNLOADING... ]]")
+        addToStat('downloads')
         mp4file = urllib.request.urlopen(mp4link)
         with open(('/home/robin/twitfix/static/' + filename), 'wb') as output:
             output.write(mp4file.read())
@@ -194,7 +277,7 @@ def dl(sub_path):
     r.headers['Sec-Fetch-Site'] = 'none'
     r.headers['Sec-Fetch-User'] = '?1'
     return r
-	
+        
 @app.route('/dir/<path:sub_path>') # Try to return a direct link to the MP4 on twitters servers
 def dir(sub_path):
     user_agent = request.headers.get('user-agent')
@@ -251,22 +334,39 @@ def direct_video_link(video_link): # Just get a redirect to a MP4 link from any 
         return cached_vnf['url']
         print(" ➤ [ D ] Redirecting to direct URL: " + vnf['url'])
 
-def embed_video(video_link): # Return Embed from any tweet link
+def addToStat(stat):
+    #print(stat)
+    today = str(date.today())
+    try:
+        collection = db.stats.find_one({'date': today})
+        delta      = ( collection[stat] + 1 ) 
+        query      = { "date" : today }
+        change     = { "$set" : { stat : delta } }
+        out        = db.stats.update_one(query, change)
+    except:
+        collection = db.stats.insert_one({'date': today, "embeds" : 1, "linksCached" : 1, "api" : 1, "downloads" : 1 })
+
+
+def getStats(day):
+    collection = db.stats.find_one({'date': day})
+    return collection
+
+def embed_video(video_link, image=0): # Return Embed from any tweet link
     cached_vnf = getVnfFromLinkCache(video_link)
 
     if cached_vnf == None:
         try:
             vnf = link_to_vnf(video_link)
             addVnfToLinkCache(video_link, vnf)
-            return embed(video_link, vnf)
+            return embed(video_link, vnf, image)
 
         except Exception as e:
             print(e)
             return message("Failed to scan your link!")
     else:
-        return embed(video_link, cached_vnf)
+        return embed(video_link, cached_vnf, image)
 
-def tweetInfo(url, tweet="", desc="", thumb="", uploader="", screen_name="", pfp="", tweetType="", image="", hits=0, likes=0, rts=0, time="", qrt={}): # Return a dict of video info with default values
+def tweetInfo(url, tweet="", desc="", thumb="", uploader="", screen_name="", pfp="", tweetType="", images="", hits=0, likes=0, rts=0, time="", qrt={}): # Return a dict of video info with default values
     vnf = {
         "tweet"         : tweet,
         "url"           : url,
@@ -276,7 +376,7 @@ def tweetInfo(url, tweet="", desc="", thumb="", uploader="", screen_name="", pfp
         "screen_name"   : screen_name,
         "pfp"           : pfp,
         "type"          : tweetType,
-        "image"         : image,
+        "images"        : images,
         "hits"          : hits,
         "likes"         : likes,
         "rts"           : rts,
@@ -303,8 +403,17 @@ def link_to_vnf_from_api(video_link):
         url   = ""
         thumb = ""
     else:
+        imgs = ["","","",""]
+        i = 0
+        for media in tweet['extended_entities']['media']:
+            imgs[i] = media['media_url_https']
+            i = i + 1
+
+        #print(imgs)
+
         url   = ""
-        thumb = tweet['extended_entities']['media'][0]['media_url']
+        images= imgs
+        thumb = tweet['extended_entities']['media'][0]['media_url_https']
 
     qrt = {}
 
@@ -315,7 +424,7 @@ def link_to_vnf_from_api(video_link):
 
     text = tweet['full_text']
 
-    vnf = tweetInfo(url, video_link, text, thumb, tweet['user']['name'], tweet['user']['screen_name'], tweet['user']['profile_image_url'], tweetType(tweet), likes=tweet['favorite_count'], rts=tweet['retweet_count'], time=tweet['created_at'], qrt=qrt)
+    vnf = tweetInfo(url, video_link, text, thumb, tweet['user']['name'], tweet['user']['screen_name'], tweet['user']['profile_image_url'], tweetType(tweet), likes=tweet['favorite_count'], rts=tweet['retweet_count'], time=tweet['created_at'], qrt=qrt, images=imgs)
     return vnf
 
 def link_to_vnf_from_youtubedl(video_link):
@@ -362,6 +471,7 @@ def getVnfFromLinkCache(video_link):
             query  = { 'tweet': video_link }
             change = { "$set" : { "hits" : hits } }
             out    = db.linkCache.update_one(query, change)
+            addToStat('embeds')
             return vnf
         else:
             print(" ➤ [ X ] Link not in DB cache")
@@ -380,6 +490,7 @@ def addVnfToLinkCache(video_link, vnf):
         try:
             out = db.linkCache.insert_one(vnf)
             print(" ➤ [ + ] Link added to DB cache ")
+            addToStat('linksCached')
             return True
         except Exception:
             print(" ➤ [ X ] Failed to add link to DB cache")
@@ -399,7 +510,7 @@ def message(text):
         repo    = config['config']['repo'], 
         url     = config['config']['url'] )
 
-def embed(video_link, vnf):
+def embed(video_link, vnf, image):
     print(" ➤ [ E ] Embedding " + vnf['type'] + ": " + vnf['url'])
     
     desc    = re.sub(r' http.*t\.co\S+', '', vnf['description'])
@@ -423,9 +534,13 @@ def embed(video_link, vnf):
     if vnf['type'] == "Text": # Change the template based on tweet type
         template = 'text.html'
     if vnf['type'] == "Image":
+        image = vnf['images'][image]
         template = 'image.html'
     if vnf['type'] == "Video":
         urlDesc = urllib.parse.quote(textwrap.shorten(desc, width=220, placeholder="..."))
+        template = 'video.html'
+    if vnf['type'] == "":
+        urlDesc  = urllib.parse.quote(textwrap.shorten(desc, width=220, placeholder="..."))
         template = 'video.html'
 
     return render_template(
@@ -438,7 +553,7 @@ def embed(video_link, vnf):
         pfp        = vnf['pfp'],  
         vidurl     = vnf['url'], 
         desc       = desc,
-        pic        = vnf['thumbnail'], 
+        pic        = image,
         user       = vnf['uploader'], 
         video_link = video_link, 
         color      = config['config']['color'], 
