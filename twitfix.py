@@ -16,7 +16,7 @@ from datetime import date
 app = Flask(__name__)
 CORS(app)
 
-pathregex = re.compile("\\w{1,15}\\/(status|statuses)\\/\\d{2,20}")
+pathregex = re.compile(r'(?P<clean>\w{1,15}/(?:status|statuses)/(?P<id>\d{2,20}))(?:(?:/photo)?/(?P<idx>\d))?')
 generate_embed_user_agents = [
     "facebookexternalhit/1.1", 
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_1) AppleWebKit/601.2.4 (KHTML, like Gecko) Version/9.0.1 Safari/601.2.4 facebookexternalhit/1.1 Facebot Twitterbot/1.0", 
@@ -206,30 +206,21 @@ def twitfix(sub_path):
 
         return dl(clean)
 
-    elif request.url.endswith("/1") or request.url.endswith("/2") or request.url.endswith("/3") or request.url.endswith("/4") or request.url.endswith("%2F1") or request.url.endswith("%2F2") or request.url.endswith("%2F3") or request.url.endswith("%2F4"):
-        twitter_url = "https://twitter.com/" + sub_path
-        
-        if "?" not in request.url:
-            clean = twitter_url[:-2]
-        else:
-            clean = twitter_url
-
-        image = ( int(request.url[-1]) - 1 )
-        return embed_video(clean, image)
-
     if match is not None:
-        twitter_url = sub_path
-
-        if match.start() == 0:
-            twitter_url = "https://twitter.com/" + sub_path
+        twitter_url = "https://twitter.com/" + match.group('clean')
 
         if user_agent in generate_embed_user_agents:
-            res = embed_video(twitter_url)
+            res = embed_video(twitter_url, int(match.group('idx') or 1) - 1)
             return res
 
         else:
-            print(" ➤ [ R ] Redirect to " + twitter_url)
-            return redirect(twitter_url, 301)
+            redirect_url = twitter_url
+
+            if match.group('idx'):
+                redirect_url += '/photo/' + match.group('idx')
+
+            print(" ➤ [ R ] Redirect to " + redirect_url)
+            return redirect(redirect_url, 301)
     else:
         return message("This doesn't appear to be a twitter URL")
 
