@@ -1,3 +1,4 @@
+#! /usr/bin/env python3
 from flask import Flask, render_template, request, redirect, Response, send_from_directory, url_for, send_file, make_response, jsonify
 from flask_cors import CORS
 import youtube_dl
