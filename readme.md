@@ -40,7 +40,7 @@ Here's a a list of the people who help to keep this project alive
 
 ## How to run (server side)
 
-this script uses the youtube-dl python module, along with flask, twitter and pymongo, so install those with pip (you can use `pip install -r requirements.txt`) and start the server with `python twitfix.py`
+this script uses the youtube-dl python module, along with flask, twitter and pymongo, so install those with pip (you can use `pip3 install -r requirements.txt`) and start the server with `python3 twitfix.py`
 
 I have included some files to give you a head start on setting this server up with uWSGI, though if you decide to use uWSGI I suggest you set up mongoDB link caching 
 
