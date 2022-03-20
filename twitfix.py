@@ -393,12 +393,12 @@ def link_to_vnf_from_api(video_link):
     print(" ➤ [ + ] Tweet Type: " + tweetType(tweet))
     # Check to see if tweet has a video, if not, make the url passed to the VNF the first t.co link in the tweet
     if tweetType(tweet) == "Video":
-        if tweet['extended_entities']['media'][0]['video_info']['variants'][-1]['content_type'] == "video/mp4":
-            url   = tweet['extended_entities']['media'][0]['video_info']['variants'][-1]['url']
+        if tweet['extended_entities']['media'][0]['video_info']['variants']:
+            best_bitrate = 0
             thumb = tweet['extended_entities']['media'][0]['media_url']
-        else:
-            url   = tweet['extended_entities']['media'][0]['video_info']['variants'][-2]['url']
-            thumb = tweet['extended_entities']['media'][0]['media_url']
+            for video in tweet['extended_entities']['media'][0]['video_info']['variants']:
+                if video.content_type == "video/mp4" and video.bitrate > best_bitrate:
+                    url = video.url
     elif tweetType(tweet) == "Text":
         url   = ""
         thumb = ""
