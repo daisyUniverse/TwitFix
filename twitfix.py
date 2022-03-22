@@ -12,6 +12,7 @@ import urllib.parse
 import urllib.request
 from datetime import date
 
+from config import load_configuration
 app = Flask(__name__)
 CORS(app)
 
@@ -28,33 +29,7 @@ generate_embed_user_agents = [
     "test"]
 
 # Read config from config.json. If it does not exist, create new.
-if not os.path.exists("config.json"):
-    with open("config.json", "w") as outfile:
-        default_config = {
-            "config":{
-                "link_cache":"json",
-                "database":"[url to mongo database goes here]",
-                "table":"TwiFix",
-                "method":"youtube-dl", 
-                "color":"#43B581", 
-                "appname": "TwitFix", 
-                "repo": "https://github.com/robinuniverse/twitfix", 
-                "url": "https://fxtwitter.com"
-                },
-            "api":{"api_key":"[api_key goes here]",
-            "api_secret":"[api_secret goes here]",
-            "access_token":"[access_token goes here]",
-            "access_secret":"[access_secret goes here]"
-            }
-        }
-
-        json.dump(default_config, outfile, indent=4, sort_keys=True)
-
-    config = default_config
-else:
-    f = open("config.json")
-    config = json.load(f)
-    f.close()
+config = load_configuration()
 
 # If method is set to API or Hybrid, attempt to auth with the Twitter API
 if config['config']['method'] in ('api', 'hybrid'):
