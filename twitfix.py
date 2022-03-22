@@ -8,6 +8,7 @@ import requests
 import json
 import re
 import os
+import pathlib
 import urllib.parse
 import urllib.request
 from datetime import date
@@ -36,6 +37,7 @@ if config['config']['method'] in ('api', 'hybrid'):
     auth = twitter.oauth.OAuth(config['api']['access_token'], config['api']['access_secret'], config['api']['api_key'], config['api']['api_secret'])
     twitter_api = twitter.Twitter(auth=auth)
 
+BASEPATH = pathlib.Path(config['config']['download_base'])
 link_cache_system = config['config']['link_cache']
 
 if link_cache_system == "json":
@@ -236,23 +238,36 @@ def dl(sub_path):
     mp4link  = direct_video_link(twitter_url)
     filename = (sub_path.split('/')[-1].split('.mp4')[0] + '.mp4')
 
-    PATH = ( './static/' + filename )
-    if os.path.isfile(PATH) and os.access(PATH, os.R_OK):
+    PATH = (BASEPATH / filename).resolve()
+    if not PATH.is_relative_to(BASEPATH):
+        return make_response('', 401)
+    if PATH.exists() and PATH.is_file() and os.access(PATH, os.R_OK):
         print(" ➤ [[ FILE EXISTS ]]")
     else:
         print(" ➤ [[ FILE DOES NOT EXIST, DOWNLOADING... ]]")
         addToStat('downloads')
         mp4file = urllib.request.urlopen(mp4link)
-        with open(('/home/robin/twitfix/static/' + filename), 'wb') as output:
+        with PATH.open('wb') as output:
             output.write(mp4file.read())
 
-    print(' ➤ [[ PRESENTING FILE: '+ filename +', URL: https://fxtwitter.com/static/'+ filename +' ]]')
-    r = make_response(send_file(('static/' + filename), mimetype='video/mp4', max_age=100))
-    r.headers['Content-Type']   = 'video/mp4'
-    r.headers['Sec-Fetch-Site'] = 'none'
-    r.headers['Sec-Fetch-User'] = '?1'
-    return r
-        
+    return redirect(url_for('media', video_file=filename))
+
+
+@app.route('/media/<string:video_file>')
+def media(video_file):
+    PATH = (BASEPATH / video_file).resolve()
+    if not PATH.is_relative_to(BASEPATH):
+        return make_response('', 401)
+    if PATH.exists() and PATH.is_file() and os.access(PATH, os.R_OK):
+        print(f' ➤ [[ PRESENTING FILE: {video_file!r}, URL: https://fxtwitter.com/media/{video_file} ]]')
+        r = make_response(send_file(PATH, mimetype='video/mp4', max_age=100))
+        r.headers['Content-Type']   = 'video/mp4'
+        r.headers['Sec-Fetch-Site'] = 'none'
+        r.headers['Sec-Fetch-User'] = '?1'
+        return r
+
+    return make_response('', 404)
+    
 @app.route('/dir/<path:sub_path>') # Try to return a direct link to the MP4 on twitters servers
 def dir(sub_path):
     user_agent = request.headers.get('user-agent')

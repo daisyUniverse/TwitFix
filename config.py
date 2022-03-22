@@ -22,7 +22,8 @@ def load_configuration():
                 "color": _env('COLOR'),
                 "appname": _env('APP_NAME'),
                 "repo": _env('REPO'),
-                "url": _env('BASE_URL')
+                "url": _env('BASE_URL'),
+                "download_base": _env('DOWNLOAD_BASE'),
             },
             "api": {
                 "api_key": _env('TWITTER_API_KEY'),
@@ -43,7 +44,8 @@ def load_configuration():
                         "color":"#43B581", 
                         "appname": "TwitFix", 
                         "repo": "https://github.com/robinuniverse/twitfix", 
-                        "url": "https://localhost:8080"
+                        "url": "https://localhost:8080",
+                        "download_base": "./static/",
                         },
                     "api":{"api_key":"[api_key goes here]",
                     "api_secret":"[api_secret goes here]",
