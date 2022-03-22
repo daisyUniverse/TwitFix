@@ -3,8 +3,6 @@ from flask_cors import CORS
 import youtube_dl
 import textwrap
 import twitter
-import pymongo
-import requests
 import json
 import re
 import os
@@ -14,6 +12,9 @@ import urllib.request
 from datetime import date
 
 from config import load_configuration
+from link_cache import initialize_link_cache
+from stats_module import initialize_stats
+
 app = Flask(__name__)
 CORS(app)
 
@@ -39,21 +40,8 @@ if config['config']['method'] in ('api', 'hybrid'):
 
 BASEPATH = pathlib.Path(config['config']['download_base'])
 link_cache_system = config['config']['link_cache']
-
-if link_cache_system == "json":
-    link_cache = {}
-    if not os.path.exists("config.json"):
-        with open("config.json", "w") as outfile:
-            default_link_cache = {"test":"test"}
-            json.dump(default_link_cache, outfile, indent=4, sort_keys=True)
-
-    f = open('links.json',)
-    link_cache = json.load(f)
-    f.close()
-elif link_cache_system == "db":
-    client = pymongo.MongoClient(config['config']['database'], connect=False)
-    table = config['config']['table']
-    db = client[table]
+STAT_MODULE = initialize_stats(link_cache_system, config)
+LINK_CACHE = initialize_link_cache(link_cache_system, config, STAT_MODULE)
 
 @app.route('/bidoof/')
 def bidoof():
@@ -62,7 +50,7 @@ def bidoof():
 @app.route('/stats/')
 def statsPage():
     today = str(date.today())
-    stats = getStats(today)
+    stats = STAT_MODULE.get_stats(today)
     return render_template('stats.html', embeds=stats['embeds'], downloadss=stats['downloads'], api=stats['api'], linksCached=stats['linksCached'], date=today)
 
 @app.route('/latest/')
@@ -81,7 +69,11 @@ def font():
 
 @app.route('/top/') # Try to return the most hit video
 def top():
-    vnf     = db.linkCache.find_one(sort = [('hits', pymongo.DESCENDING)])
+    try:
+        [vnf]   = LINK_CACHE.get_links_from_cache('hits', 1, 0)
+    except ValueError:
+        print(" ➤ [ ✔ ] Top video page loaded: None yet...")
+        return make_response('', 204)
     desc    = re.sub(r' http.*t\.co\S+', '', vnf['description'])
     urlUser = urllib.parse.quote(vnf['uploader'])
     urlDesc = urllib.parse.quote(desc)
@@ -91,49 +83,39 @@ def top():
 
 @app.route('/api/latest/')  # Return some raw VNF data sorted by top tweets
 def apiLatest():
-    bigvnf   = []
-
     tweets   = request.args.get("tweets", default=10, type=int)
     page     = request.args.get("page", default=0, type=int)
 
     if tweets > 15:
         tweets = 1
 
-    vnf      = db.linkCache.find(sort = [('_id', pymongo.DESCENDING)]).skip(tweets * page).limit(tweets)
-
-    for r in vnf:
-        bigvnf.append(r)
+    vnf      = LINK_CACHE.get_links_from_cache('_id', tweets, tweets*page)
 
     print(" ➤ [ ✔ ] Latest video API called")
-    addToStat('api')
-    return Response(response=json.dumps(bigvnf, default=str), status=200, mimetype="application/json")
+    STAT_MODULE.add_to_stat('api')
+    return Response(response=json.dumps(vnf, default=str), status=200, mimetype="application/json")
 
 @app.route('/api/top/') # Return some raw VNF data sorted by top tweets
 def apiTop():
-    bigvnf   = []
-
     tweets   = request.args.get("tweets", default=10, type=int)
     page     = request.args.get("page", default=0, type=int)
 
     if tweets > 15:
         tweets = 1
 
-    vnf      = db.linkCache.find(sort = [('hits', pymongo.DESCENDING )]).skip(tweets * page).limit(tweets)
-
-    for r in vnf:
-        bigvnf.append(r)
+    vnf      = LINK_CACHE.get_links_from_cache('hits', tweets, tweets*page)
 
     print(" ➤ [ ✔ ] Top video API called")
-    addToStat('api')
-    return Response(response=json.dumps(bigvnf, default=str), status=200, mimetype="application/json")
+    STAT_MODULE.add_to_stat('api')
+    return Response(response=json.dumps(vnf, default=str), status=200, mimetype="application/json")
 
 @app.route('/api/stats/') # Return a json of a usage stats for a given date (defaults to today)
 def apiStats():
     try:
-        addToStat('api')
+        STAT_MODULE.add_to_stat('api')
         today = str(date.today())
         desiredDate = request.args.get("date", default=today, type=str)
-        stat = getStats(desiredDate)
+        stat = STAT_MODULE.get_stats(desiredDate)
         print (" ➤ [ ✔ ] Stats API called")
         return Response(response=json.dumps(stat, default=str), status=200, mimetype="application/json")
     except:
@@ -245,7 +227,7 @@ def dl(sub_path):
         print(" ➤ [[ FILE EXISTS ]]")
     else:
         print(" ➤ [[ FILE DOES NOT EXIST, DOWNLOADING... ]]")
-        addToStat('downloads')
+        STAT_MODULE.add_to_stat('downloads')
         mp4file = urllib.request.urlopen(mp4link)
         with PATH.open('wb') as output:
             output.write(mp4file.read())
@@ -295,11 +277,11 @@ def favicon():
                           'favicon.ico',mimetype='image/vnd.microsoft.icon')
 
 def direct_video(video_link): # Just get a redirect to a MP4 link from any tweet link
-    cached_vnf = getVnfFromLinkCache(video_link)
+    cached_vnf = LINK_CACHE.get_link_from_cache(video_link)
     if cached_vnf is None:
         try:
             vnf = link_to_vnf(video_link)
-            addVnfToLinkCache(video_link, vnf)
+            LINK_CACHE.add_link_to_cache(video_link, vnf)
             return redirect(vnf['url'], 301)
             print(" ➤ [ D ] Redirecting to direct URL: " + vnf['url'])
         except Exception as e:
@@ -310,11 +292,11 @@ def direct_video(video_link): # Just get a redirect to a MP4 link from any tweet
         print(" ➤ [ D ] Redirecting to direct URL: " + vnf['url'])
 
 def direct_video_link(video_link): # Just get a redirect to a MP4 link from any tweet link
-    cached_vnf = getVnfFromLinkCache(video_link)
+    cached_vnf = LINK_CACHE.get_link_from_cache(video_link)
     if cached_vnf is None:
         try:
             vnf = link_to_vnf(video_link)
-            addVnfToLinkCache(video_link, vnf)
+            LINK_CACHE.add_link_to_cache(video_link, vnf)
             return vnf['url']
             print(" ➤ [ D ] Redirecting to direct URL: " + vnf['url'])
         except Exception as e:
@@ -324,30 +306,13 @@ def direct_video_link(video_link): # Just get a redirect to a MP4 link from any 
         return cached_vnf['url']
         print(" ➤ [ D ] Redirecting to direct URL: " + vnf['url'])
 
-def addToStat(stat):
-    #print(stat)
-    today = str(date.today())
-    try:
-        collection = db.stats.find_one({'date': today})
-        delta      = ( collection[stat] + 1 ) 
-        query      = { "date" : today }
-        change     = { "$set" : { stat : delta } }
-        out        = db.stats.update_one(query, change)
-    except:
-        collection = db.stats.insert_one({'date': today, "embeds" : 1, "linksCached" : 1, "api" : 1, "downloads" : 1 })
-
-
-def getStats(day):
-    collection = db.stats.find_one({'date': day})
-    return collection
-
 def embed_video(video_link, image=0): # Return Embed from any tweet link
-    cached_vnf = getVnfFromLinkCache(video_link)
+    cached_vnf = LINK_CACHE.get_link_from_cache(video_link)
 
     if cached_vnf is None:
         try:
             vnf = link_to_vnf(video_link)
-            addVnfToLinkCache(video_link, vnf)
+            LINK_CACHE.add_link_to_cache(video_link, vnf)
             return embed(video_link, vnf, image)
 
         except Exception as e:
@@ -449,47 +414,6 @@ def link_to_vnf(video_link): # Return a VideoInfo object or die trying
     else:
         print("Please set the method key in your config file to 'api' 'youtube-dl' or 'hybrid'")
         return None
-
-def getVnfFromLinkCache(video_link):
-    if link_cache_system == "db":
-        collection = db.linkCache
-        vnf        = collection.find_one({'tweet': video_link})
-        # print(vnf)
-        if vnf != None: 
-            hits   = ( vnf['hits'] + 1 ) 
-            print(" ➤ [ ✔ ] Link located in DB cache. " + "hits on this link so far: [" + str(hits) + "]")
-            query  = { 'tweet': video_link }
-            change = { "$set" : { "hits" : hits } }
-            out    = db.linkCache.update_one(query, change)
-            addToStat('embeds')
-            return vnf
-        else:
-            print(" ➤ [ X ] Link not in DB cache")
-            return None
-    elif link_cache_system == "json":
-        if video_link in link_cache:
-            print("Link located in json cache")
-            vnf = link_cache[video_link]
-            return vnf
-        else:
-            print(" ➤ [ X ] Link not in json cache")
-            return None
-
-def addVnfToLinkCache(video_link, vnf):
-    if link_cache_system == "db":
-        try:
-            out = db.linkCache.insert_one(vnf)
-            print(" ➤ [ + ] Link added to DB cache ")
-            addToStat('linksCached')
-            return True
-        except Exception:
-            print(" ➤ [ X ] Failed to add link to DB cache")
-            return None
-    elif link_cache_system == "json":
-        link_cache[video_link] = vnf
-        with open("links.json", "w") as outfile: 
-            json.dump(link_cache, outfile, indent=4, sort_keys=True)
-            return None
 
 def message(text):
     return render_template(
