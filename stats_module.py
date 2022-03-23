@@ -9,11 +9,11 @@ except:
 
 class StatsBase:
     def __init__(self, config) -> None:
-        raise NotImplemented()
+        pass
     def add_to_stat(self, metric: str) -> None:
-        raise NotImplemented()
+        pass
     def get_stats(self, day: str) -> Any:
-        raise NotImplemented()
+        pass
 
 
 class MongoStats(StatsBase):

@@ -10,13 +10,13 @@ except:
 
 class LinkCacheBase:
     def __init__(self, config) -> None:
-        raise NotImplemented()
+        pass
     def add_link_to_cache(self, video_link: str, vnf) -> bool:
-        raise NotImplemented()
+        pass
     def get_link_from_cache(self, video_link: str) -> Optional[Any]:
-        raise NotImplemented()
+        pass
     def get_links_from_cache(self, field: str, count: int, offset: int) -> List[Any]:
-        raise NotImplemented()
+        pass
 
 
 class MongoDBCache(LinkCacheBase):
