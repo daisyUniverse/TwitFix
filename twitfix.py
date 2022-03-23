@@ -41,8 +41,8 @@ if config['config']['method'] in ('api', 'hybrid'):
 link_cache_system = config['config']['link_cache']
 storage_module_type = config['config']['storage_module']
 STAT_MODULE = initialize_stats(link_cache_system, config)
-LINK_CACHE = initialize_link_cache(link_cache_system, config, STAT_MODULE)
-STORAGE_MODULE = initialize_storage(storage_module_type, config, STAT_MODULE)
+LINK_CACHE = initialize_link_cache(link_cache_system, config)
+STORAGE_MODULE = initialize_storage(storage_module_type, config)
 
 @app.route('/bidoof/')
 def bidoof():
@@ -220,7 +220,9 @@ def dl(sub_path):
     
     mp4link  = direct_video_link(twitter_url)
 
-    stored_identifier = STORAGE_MODULE.store_media(mp4link)
+    cache_hit, stored_identifier = STORAGE_MODULE.store_media(mp4link)
+    if not cache_hit:
+        STAT_MODULE.add_to_stat('downloads')
     response = STORAGE_MODULE.retrieve_media(stored_identifier)
 
     if response is None:
@@ -264,12 +266,24 @@ def favicon():
     return send_from_directory(os.path.join(app.root_path, 'static'),
                           'favicon.ico',mimetype='image/vnd.microsoft.icon')
 
+def add_link_to_cache(video_link, vnf):
+    res = LINK_CACHE.add_link_to_cache(video_link, vnf)
+    if res:
+        STAT_MODULE.add_to_stat('linksCached')
+    return res
+
+def get_link_from_cache(video_link):
+    res = LINK_CACHE.get_link_from_cache(video_link)
+    if res:
+        STAT_MODULE.add_to_stat('embeds')
+    return res
+
 def direct_video(video_link): # Just get a redirect to a MP4 link from any tweet link
-    cached_vnf = LINK_CACHE.get_link_from_cache(video_link)
+    cached_vnf = get_link_from_cache(video_link)
     if cached_vnf is None:
         try:
             vnf = link_to_vnf(video_link)
-            LINK_CACHE.add_link_to_cache(video_link, vnf)
+            add_link_to_cache(video_link, vnf)
             return redirect(vnf['url'], 301)
             print(" ➤ [ D ] Redirecting to direct URL: " + vnf['url'])
         except Exception as e:
@@ -280,11 +294,11 @@ def direct_video(video_link): # Just get a redirect to a MP4 link from any tweet
         print(" ➤ [ D ] Redirecting to direct URL: " + vnf['url'])
 
 def direct_video_link(video_link): # Just get a redirect to a MP4 link from any tweet link
-    cached_vnf = LINK_CACHE.get_link_from_cache(video_link)
+    cached_vnf = get_link_from_cache(video_link)
     if cached_vnf is None:
         try:
             vnf = link_to_vnf(video_link)
-            LINK_CACHE.add_link_to_cache(video_link, vnf)
+            add_link_to_cache(video_link, vnf)
             return vnf['url']
             print(" ➤ [ D ] Redirecting to direct URL: " + vnf['url'])
         except Exception as e:
@@ -295,12 +309,12 @@ def direct_video_link(video_link): # Just get a redirect to a MP4 link from any 
         print(" ➤ [ D ] Redirecting to direct URL: " + vnf['url'])
 
 def embed_video(video_link, image=0): # Return Embed from any tweet link
-    cached_vnf = LINK_CACHE.get_link_from_cache(video_link)
+    cached_vnf = get_link_from_cache(video_link)
 
     if cached_vnf is None:
         try:
             vnf = link_to_vnf(video_link)
-            LINK_CACHE.add_link_to_cache(video_link, vnf)
+            add_link_to_cache(video_link, vnf)
             return embed(video_link, vnf, image)
 
         except Exception as e:

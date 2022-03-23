@@ -9,7 +9,7 @@ except:
     pass
 
 class LinkCacheBase:
-    def __init__(self, config, stat_module) -> None:
+    def __init__(self, config) -> None:
         raise NotImplemented()
     def add_link_to_cache(self, video_link: str, vnf) -> bool:
         raise NotImplemented()
@@ -20,8 +20,7 @@ class LinkCacheBase:
 
 
 class MongoDBCache(LinkCacheBase):
-    def __init__(self, config, stat_module) -> None:
-        self.stats = stat_module
+    def __init__(self, config) -> None:
         self.client = pymongo.MongoClient(config['config']['database'], connect=False)
         table = config['config']['table']
         self.db = self.client[table]
@@ -30,7 +29,6 @@ class MongoDBCache(LinkCacheBase):
         try:
             out = self.db.linkCache.insert_one(vnf)
             print(" ➤ [ + ] Link added to DB cache ")
-            self.stats.add_to_stat('linksCached')
             return True
         except Exception:
             print(" ➤ [ X ] Failed to add link to DB cache")
@@ -45,7 +43,6 @@ class MongoDBCache(LinkCacheBase):
             query  = { 'tweet': video_link }
             change = { "$inc" : { "hits" : 1 } }
             out    = self.db.linkCache.update_one(query, change)
-            self.stats.add_to_stat('embeds')
             return vnf
         else:
             print(" ➤ [ X ] Link not in DB cache")
@@ -57,8 +54,7 @@ class MongoDBCache(LinkCacheBase):
 # This might be fine to use under local development, but once you got a huge site running or you need
 # to spread the load, this local-only system will not be useful.
 class JSONCache(LinkCacheBase):
-    def __init__(self, config, stat_module) -> None:
-        self.stats = stat_module
+    def __init__(self, config) -> None:
         self.links_cache_filename = "links.json"
         try:
             with open(self.links_cache_filename) as f:
@@ -74,7 +70,6 @@ class JSONCache(LinkCacheBase):
     def add_link_to_cache(self, video_link, vnf):
         self.link_cache[video_link] = vnf
         self._write_cache()
-        self.stats.add_to_stat('linksCached')
 
     
     def get_link_from_cache(self, video_link):
@@ -83,7 +78,6 @@ class JSONCache(LinkCacheBase):
             vnf = self.link_cache[video_link]
             vnf['hits'] += 1
             self._write_cache()
-            self.stats.add_to_stat('embeds')
             return vnf
         else:
             print(" ➤ [ X ] Link not in json cache")
@@ -94,13 +88,13 @@ class JSONCache(LinkCacheBase):
         return list(islice(sorted_cache, offset, offset + count))
 
 
-def initialize_link_cache(link_cache_type, config, stat_module) -> LinkCacheBase:
+def initialize_link_cache(link_cache_type: str, config) -> LinkCacheBase:
     if link_cache_type == "db":
         if not globals().get('pymongo'):
             raise LookupError("the pymongo library was not included during build.")
-        return MongoDBCache(config, stat_module)
+        return MongoDBCache(config)
 
     if link_cache_type == "json":
-        return JSONCache(config, stat_module)
+        return JSONCache(config)
 
     raise LookupError("Cache system not recognized.")

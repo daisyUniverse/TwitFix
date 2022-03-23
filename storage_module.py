@@ -1,17 +1,17 @@
 import os
 import pathlib
 import shutil
+from typing import Tuple
 
 import urllib3
 
 
 class StorageBase:
-    def __init__(self, config, stat_module) -> None:
+    def __init__(self, config) -> None:
         self.config = config
-        self.stat_module = stat_module
         pass
 
-    def store_media(self, url: str):
+    def store_media(self, url: str) -> Tuple[bool, str]:
         """
         Download the given url for rehosting by our own system.
         """
@@ -25,8 +25,8 @@ class StorageBase:
 
 
 class LocalFilesystem(StorageBase):
-    def __init__(self, config, stat_module) -> None:
-        super().__init__(config, stat_module)
+    def __init__(self, config) -> None:
+        super().__init__(config)
         self.basepath = pathlib.Path(config['config']['download_base'])
 
 
@@ -38,13 +38,13 @@ class LocalFilesystem(StorageBase):
             raise OSError("Invalid media identifier.")
         if PATH.exists() and PATH.is_file() and os.access(PATH, os.R_OK):
             print(" ➤ [[ FILE EXISTS ]]")
-        else:
-            print(" ➤ [[ FILE DOES NOT EXIST, DOWNLOADING... ]]")
-            self.stat_module.add_to_stat('downloads')
-            mp4file = urllib3.request.urlopen(url)
-            with PATH.open('wb') as output:
-                shutil.copyfileobj(mp4file, output)
-        return filename
+            return True, filename
+
+        print(" ➤ [[ FILE DOES NOT EXIST, DOWNLOADING... ]]")
+        mp4file = urllib3.request.urlopen(url)
+        with PATH.open('wb') as output:
+            shutil.copyfileobj(mp4file, output)
+        return False, filename
 
 
     def retrieve_media(self, own_identifier: str):
@@ -59,7 +59,7 @@ class LocalFilesystem(StorageBase):
 
 class NoStorage(StorageBase):
     def store_media(self, url: str):
-        return url
+        return False, url
     
     def retrieve_media(self, own_identifier: str):
         return {"output": "url", "url": own_identifier}
