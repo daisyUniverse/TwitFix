@@ -65,9 +65,9 @@ class NoStorage(StorageBase):
         return {"output": "url", "url": own_identifier}
 
 
-def initialize_storage(storage_type: str, config, stats_module) -> StorageBase:
+def initialize_storage(storage_type: str, config) -> StorageBase:
     if storage_type == "local":
-        return LocalFilesystem(config, stats_module)
+        return LocalFilesystem(config)
 
     if storage_type == "none":
         return NoStorage()
