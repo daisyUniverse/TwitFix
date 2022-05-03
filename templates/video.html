@@ -2,7 +2,7 @@
 
 {% block head %}
     <meta content='text/html; charset=UTF-8' http-equiv='Content-Type' />
-    <meta content="{{ color }}" data-react-helmet="true" name="theme-color" />
+    <meta content="{{ color }}" name="theme-color" />
     <meta property="og:site_name" content="{{ appname }}">
 
     <meta name="twitter:card"                       content="player" />
@@ -19,8 +19,8 @@
     <meta property="og:video:type"         content="video/mp4" />
     <meta property="og:video:width"        content="720" />
     <meta property="og:video:height"       content="480" />
-    <meta name="twitter:title"             content="{{ user }} (@{{ screenName }})"  />
     <meta property="og:image"              content="{{ pic }}" />
+    <meta name="description"               content="{{ desc }}" />
 
     <link rel="alternate" href="{{ url }}/oembed.json?desc={{ urlUser }}&user={{ urlDesc }}&link={{ urlLink }}&ttype=video" type="application/json+oembed" title="{{ user }}">
     <meta http-equiv = "refresh" content = "0; url = {{ vidlink }}" />

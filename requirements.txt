@@ -2,3 +2,4 @@ Flask
 youtube_dl
 pymongo
 twitter
+flask_cors
