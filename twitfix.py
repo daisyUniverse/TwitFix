@@ -17,9 +17,13 @@ CORS(app)
 
 pathregex = re.compile("\\w{1,15}\\/(status|statuses)\\/\\d{2,20}")
 generate_embed_user_agents = [
-    "facebookexternalhit/1.1", 
+    "facebookexternalhit/1.1",
+    "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/31.0.1650.57 Safari/537.36",
+    "Mozilla/5.0 (Windows; U; Windows NT 10.0; en-US; Valve Steam Client/default/1596241936; ) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.117 Safari/537.36",
+    "Mozilla/5.0 (Windows; U; Windows NT 10.0; en-US; Valve Steam Client/default/0; ) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.117 Safari/537.36", 
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_1) AppleWebKit/601.2.4 (KHTML, like Gecko) Version/9.0.1 Safari/601.2.4 facebookexternalhit/1.1 Facebot Twitterbot/1.0", 
-    "facebookexternalhit/1.1", 
+    "facebookexternalhit/1.1",
+    "Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US; Valve Steam FriendsUI Tenfoot/0; ) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.105 Safari/537.36", 
     "Slackbot-LinkExpanding 1.0 (+https://api.slack.com/robots)", 
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:38.0) Gecko/20100101 Firefox/38.0", 
     "Mozilla/5.0 (compatible; Discordbot/2.0; +https://discordapp.com)", 
@@ -81,6 +85,10 @@ elif link_cache_system == "db":
 @app.route('/bidoof/')
 def bidoof():
     return redirect("https://cdn.discordapp.com/attachments/291764448757284885/937343686927319111/IMG_20211226_202956_163.webp", 301)
+
+@app.route('/discord/')
+def discord():
+    return redirect("https://discord.gg/ztz2hHwZXv", 301)
 
 @app.route('/stats/')
 def statsPage():
@@ -204,6 +212,23 @@ def twitfix(sub_path):
             clean = twitter_url
 
         return dl(clean)
+
+    elif request.url.endswith(".json") or request.url.endswith("%2Ejson"):
+        twitter_url = "https://twitter.com/" + sub_path
+        
+        if "?" not in request.url:
+            clean = twitter_url[:-5]
+        else:
+            clean = twitter_url
+
+        print( " ➤ [ API ] VNF Json api hit!")
+
+        vnf = link_to_vnf_from_api(clean.replace(".json",""))
+
+        if user_agent in generate_embed_user_agents:
+            return message("VNF Data: ( discord useragent preview )\n\n"+ json.dumps(vnf, default=str))
+        else:
+            return Response(response=json.dumps(vnf, default=str), status=200, mimetype="application/json")
 
     elif request.url.endswith("/1") or request.url.endswith("/2") or request.url.endswith("/3") or request.url.endswith("/4") or request.url.endswith("%2F1") or request.url.endswith("%2F2") or request.url.endswith("%2F3") or request.url.endswith("%2F4"):
         twitter_url = "https://twitter.com/" + sub_path
@@ -366,7 +391,7 @@ def embed_video(video_link, image=0): # Return Embed from any tweet link
     else:
         return embed(video_link, cached_vnf, image)
 
-def tweetInfo(url, tweet="", desc="", thumb="", uploader="", screen_name="", pfp="", tweetType="", images="", hits=0, likes=0, rts=0, time="", qrt={}): # Return a dict of video info with default values
+def tweetInfo(url, tweet="", desc="", thumb="", uploader="", screen_name="", pfp="", tweetType="", images="", hits=0, likes=0, rts=0, time="", qrt={}, nsfw=False): # Return a dict of video info with default values
     vnf = {
         "tweet"         : tweet,
         "url"           : url,
@@ -381,15 +406,18 @@ def tweetInfo(url, tweet="", desc="", thumb="", uploader="", screen_name="", pfp
         "likes"         : likes,
         "rts"           : rts,
         "time"          : time,
-        "qrt"           : qrt
+        "qrt"           : qrt,
+        "nsfw"          : nsfw
     }
     return vnf
 
 def link_to_vnf_from_api(video_link):
     print(" ➤ [ + ] Attempting to download tweet info from Twitter API")
-    imgs = ["","","",""] # initialize this in this scope to not cause errors
     twid = int(re.sub(r'\?.*$','',video_link.rsplit("/", 1)[-1])) # gets the tweet ID as a int from the passed url
     tweet = twitter_api.statuses.show(_id=twid, tweet_mode="extended")
+    # For when I need to poke around and see what a tweet looks like
+    #print(tweet)
+    imgs = ["","","","", ""]
     print(" ➤ [ + ] Tweet Type: " + tweetType(tweet))
     # Check to see if tweet has a video, if not, make the url passed to the VNF the first t.co link in the tweet
     if tweetType(tweet) == "Video":
@@ -403,14 +431,16 @@ def link_to_vnf_from_api(video_link):
         url   = ""
         thumb = ""
     else:
+        imgs = ["","","","", ""]
         i = 0
         for media in tweet['extended_entities']['media']:
             imgs[i] = media['media_url_https']
             i = i + 1
 
         #print(imgs)
-
+        imgs[4] = str(i)
         url   = ""
+        images= imgs
         thumb = tweet['extended_entities']['media'][0]['media_url_https']
 
     qrt = {}
@@ -422,7 +452,27 @@ def link_to_vnf_from_api(video_link):
 
     text = tweet['full_text']
 
-    vnf = tweetInfo(url, video_link, text, thumb, tweet['user']['name'], tweet['user']['screen_name'], tweet['user']['profile_image_url'], tweetType(tweet), likes=tweet['favorite_count'], rts=tweet['retweet_count'], time=tweet['created_at'], qrt=qrt, images=imgs)
+    if 'possibly_sensitive' in tweet:
+        nsfw = tweet['possibly_sensitive']
+    else:
+        nsfw = False
+
+    vnf = tweetInfo(
+        url, 
+        video_link, 
+        text, thumb, 
+        tweet['user']['name'], 
+        tweet['user']['screen_name'], 
+        tweet['user']['profile_image_url'], 
+        tweetType(tweet), 
+        likes=tweet['favorite_count'], 
+        rts=tweet['retweet_count'], 
+        time=tweet['created_at'], 
+        qrt=qrt, 
+        images=imgs,
+        nsfw=nsfw
+        )
+        
     return vnf
 
 def link_to_vnf_from_youtubedl(video_link):
@@ -515,10 +565,12 @@ def embed(video_link, vnf, image):
     urlUser = urllib.parse.quote(vnf['uploader'])
     urlDesc = urllib.parse.quote(desc)
     urlLink = urllib.parse.quote(video_link)
-    likeDisplay = ("\n─────────────\n ♥ [" + str(vnf['likes']) + "] ⤴ [" + str(vnf['rts']) + "]\n─────────────")
+    likeDisplay = ("\n\n💖 " + str(vnf['likes']) + " 🔁 " + str(vnf['rts']) + "\n")
     
     try:
-        if vnf['type'] == "Video":
+        if vnf['type'] == "":
+            desc = desc
+        elif vnf['type'] == "Video":
             desc = desc
         elif vnf['qrt'] == {}: # Check if this is a QRT and modify the description
             desc = (desc + likeDisplay)
@@ -540,6 +592,11 @@ def embed(video_link, vnf, image):
     if vnf['type'] == "":
         urlDesc  = urllib.parse.quote(textwrap.shorten(desc, width=220, placeholder="..."))
         template = 'video.html'
+        
+    color = "#7FFFD4" # Green
+
+    if vnf['nsfw'] == True:
+        color = "#800020" # Red
 
     return render_template(
         template, 
@@ -554,7 +611,7 @@ def embed(video_link, vnf, image):
         pic        = image,
         user       = vnf['uploader'], 
         video_link = video_link, 
-        color      = config['config']['color'], 
+        color      = color, 
         appname    = config['config']['appname'], 
         repo       = config['config']['repo'], 
         url        = config['config']['url'], 
