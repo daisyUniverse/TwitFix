@@ -1,7 +1,8 @@
 var tweetCount = 1,
     page = 0,
     loading = false,
-    bigArray = [];
+    bigArray = [],
+    isNSFWSHOW = false;
 const iosHeight = () => {
     document.documentElement.style.setProperty("--ios-height", window.innerHeight + "px");
 };
@@ -11,22 +12,46 @@ window.onload = () => {
     //ios height
     iosHeight();
     const contwarn = document.querySelector("#contwarn");
+    const notsafe = document.querySelector("#notsafe");
+    if (document.cookie.includes("NSFW=true")) {
+        notsafe.checked = true;
+        isNSFWSHOW = true;
+    }
     if (document.cookie.includes("always=true")) {
         contwarn.checked = true;
         forNow();
     }
-
     contwarn.addEventListener("change", () => {
-        if (contwarn.checked) {
-            document.cookie = `always = true; max-age=15780000; SameSite=None; Secure`;
-        } else {
-            document.cookie = "always=false";
+        if (contwarn.checked)
+            addCookie("always", true);
+        else
+            addCookie("always", false);
+    })
+    notsafe.addEventListener("change", () => {
+        if (notsafe.checked) {
+            document.querySelectorAll(".nsfw").forEach(e => e.classList.add("noff"));
+            addCookie("NSFW", true);
+            isNSFWSHOW = true;
         }
+        else {
+            document.querySelectorAll(".noff").forEach(e => e.classList.remove("noff"));
+            isNSFWSHOW = false;
+            addCookie("NSFW", false);
+        }
+
     })
 }
+
+function addCookie(name, state) {
+    if (state)
+        document.cookie = `${name}=${state}; max-age=15780000; SameSite=None; Secure`;
+    else
+        document.cookie = `${name}=`;
+}
+
 function cookieTime() {
     document.querySelector("#contwarn").checked = true;
-    document.cookie = `always = true; max-age=15780000; SameSite=None; Secure`;
+    addCookie("always", true);
     forNow();
 }
 function forNow() {
@@ -149,31 +174,78 @@ function createTweet(json) {
             tweet.appendChild(desc);
         }
 
+        if (json["nsfw"]) { //beware
+            var nsfw = createEl("div", "nsfw");
+            const ncont = createEl("div", "ncont");
+            const ninfo = createEl("div", "ninfo", { inner: "This is a NSFW Tweet <br> Press \"Show me\" if you want to see it" });
+            var nshow = createEl("div", "nshow", { inner: "Show me" });
+            ncont.appendChild(ninfo);
+            ncont.appendChild(nshow);
+            nsfw.appendChild(ncont);
+            if (isNSFWSHOW === true)
+                nsfw.classList.add("noff");
+        }
+
+
         switch (json["type"]) {
             case "Text":
                 //so empty
                 break;
             case "Image":
-                const media = createEl("img", "media", {
-                    src: json["thumbnail"],
-                    lazy: true
-                });
-                tweet.appendChild(media);
+                if (json["images"][4] > "1" && json["images"][4]) { //multiple images!!??
+                    const grid = createEl("div", "imgCont");
+                    for (let i = 0; i < json["images"][4]; i++)
+                        grid.appendChild(createEl("img", "media", {
+                            src: json["images"][i],
+                            lazy: true
+                        }));
+                    //console.log(json["images"][4])
+                    if (nsfw)
+                        nsfw.appendChild(grid);
+                    else
+                        tweet.appendChild(grid);
+                }
+                else {
+                    const media = createEl("img", "media", {
+                        src: json["thumbnail"],
+                        lazy: true
+                    });
+                    if (nsfw)
+                        nsfw.appendChild(media);
+                    else
+                        tweet.appendChild(media);
+                }
+
                 break;
             case "Video":
                 const video = createEl("video", "media", {
                     video: json["url"]
                 });
-                tweet.appendChild(video);
+                if (nsfw)
+                    nsfw.appendChild(video);
+                else
+                    tweet.appendChild(video);
                 break;
             default:
                 const video2 = createEl("video", "media", {
                     video: json["url"]
                 });
-                tweet.appendChild(video2);
+                if (nsfw)
+                    nsfw.appendChild(video2);
+                else
+                    tweet.appendChild(video2);
                 //console.log("this should not happen!");
                 break;
         }
+
+        if (nsfw) {
+            tweet.appendChild(nsfw);
+            nshow.addEventListener("click", () => {
+                nsfw.classList.add("noff");
+            });
+        }
+
+
         const qrtob = json["qrt"];
 
         if ((Object.keys(qrtob).length === 0 && Object.getPrototypeOf(qrtob) === Object.prototype) == false) {
@@ -207,6 +279,7 @@ function createTweet(json) {
         share.addEventListener("click", () =>
             navigator.clipboard.writeText(json["tweet"].replace("https://t", "https://fxt"))
         );
+
         tweetCount++;
     } else {
         if (bigArray.length > 100) //pro memory management 😎
